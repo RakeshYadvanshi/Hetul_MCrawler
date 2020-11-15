@@ -10,6 +10,7 @@ using System.Windows.Forms;
 using ExcelDataReader;
 using Newtonsoft.Json;
 using PuppeteerSharp;
+using Shared;
 
 namespace IndeedCrawler
 {
@@ -19,26 +20,10 @@ namespace IndeedCrawler
         public Form1()
         {
             InitializeComponent();
-            setupBrowser().Wait();
+            _page = BrowserAutoBot.setupBrowser().Result;
         }
 
-        async Task setupBrowser()
-        {
-            var browser = await Puppeteer.LaunchAsync(new LaunchOptions
-            {
-                Headless = false,
-                ExecutablePath = @"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",//"C:\Users\Admin\AppData\Local\Chromium\Application\chrome.exe",
-                LogProcess = true,
-                IgnoreHTTPSErrors = true,
-                Args = new[] {
-                    "--no-sandbox",
-                    "--disable-infobars",
-                    "--disable-setuid-sandbox",
-                    "--ignore-ICertificatePolicy-errors",
-                }
-            }).ConfigureAwait(false);
-            _page = await browser.NewPageAsync().ConfigureAwait(false);
-        }
+
         string IndeedBaseUrl = "https://www.indeed.com";
         static string sFileName;
         static int iRow, iCol = 2;
@@ -72,84 +57,9 @@ namespace IndeedCrawler
 
             return dataSet;
         }
-        private HtmlAgilityPack.HtmlDocument GetContentFromUrl(string url)
-        {
-            HtmlAgilityPack.HtmlWeb web = new HtmlAgilityPack.HtmlWeb
-            {
-                UserAgent =
-                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.83 Safari/537.36"
-            };
-            HtmlAgilityPack.HtmlDocument doc = web.Load(url);
-            return doc;
-        }
 
-        private string getAmazonJobId(string amazonHtmlContent)
-        {
-            var document = new HtmlAgilityPack.HtmlDocument();
-            document.LoadHtml(amazonHtmlContent);
-            var textContent = document.DocumentNode.QuerySelector(".first")?.InnerHtml;
-            if (textContent != null)
-            {
-                textContent = textContent.Replace("Job ID:", "").Trim().Split('|')[0].Trim();
-                return textContent;
-            }
-            return "";
-        }
-
-        private async Task<string> GetHtmlContentFromUrl(string amazonUrl, bool isAmazone = false)
-        {
-            var amazonContent = "";
-            try
-            {
-                if (!isAmazone)
-                {
-                    //await _page.GoToAsync(amazonUrl, 0).ConfigureAwait(false);
-                    return GetContentFromUrl(amazonUrl).DocumentNode.OuterHtml;
-                }
-                else
-                {
-                    await _page.GoToAsync(amazonUrl, new NavigationOptions()
-                    {
-                        Timeout = 0,
-                        WaitUntil = new WaitUntilNavigation[]
-                        {
-                            WaitUntilNavigation.Networkidle2
-                        }
-                    }).ConfigureAwait(false);
-
-                }
-                amazonContent = await GetPageContent();
-            }
-            catch (Exception e)
-            {
-                return await GetHtmlContentFromUrl(amazonUrl, isAmazone);
-            }
-
-            return amazonContent;
-        }
-
-        private async Task<string> GetPageContent()
-        {
-            return await _page.GetContentAsync().ConfigureAwait(false);
-        }
-        private string GetCurrentPageUrl()
-        {
-            return _page.Url;
-        }
         private void button1_Click(object sender, EventArgs e)
         {
-
-            //var amazonContent = GetHtmlContentFromUrl("https://www.indeed.com/rc/clk?jk=062eff32017241b0&amp;from=vj&amp;pos=bottom&amp;sjdu=YmZE5d5THV8u75cuc0H6Y26AwfY51UOGmh3Z9h4OvXhjvNyM6ocwxLEuN60R_NNEwsdLqiuaGy5Gw05HfKNzLw&amp;astse=7e189c3bfb92b5e3&amp;assa=6337", true).Result;
-            //var amazonId = getAmazonJobId(amazonContent);
-            //var tried = 0;
-            //while (amazonId == "" && tried < 5)
-            //{
-            //    Thread.Sleep(15000);
-            //    tried++;
-            //    amazonId = getAmazonJobId(GetPageContent().Result);
-            //}
-
-
             openFileDialog1.Title = "Excel File to Edit";
             openFileDialog1.FileName = "";
             openFileDialog1.Filter = "Excel File|*.xlsx;*.xls";
@@ -272,7 +182,7 @@ namespace IndeedCrawler
                 jobUrl = jobUrl + "?l=" + xlDataObj.xlJobLocation;
             }
             HtmlAgilityPack.HtmlDocument doc = new HtmlAgilityPack.HtmlDocument();
-            doc.LoadHtml(GetHtmlContentFromUrl(jobUrl).Result);//GetContentFromUrl(jobUrl);
+            doc.LoadHtml(BrowserAutoBot.GetHtmlContentFromUrl(jobUrl, _page).Result);//GetContentFromUrl(jobUrl);
             var jobList = doc.QuerySelectorAll(".jobsearch-SerpJobCard.unifiedRow.row");
 
             foreach (var item in jobList)
@@ -338,7 +248,7 @@ namespace IndeedCrawler
                                 xlDataObj.JobLocation = joblocationArray[0] + ", " + joblocationArray[1].Trim().Split(' ')[0];
                             }
                             isLastSaved = true;
-                            xlDataObj.JobDetailUrl = GetApplyLink($"{IndeedBaseUrl}/viewjob?jk=" + id);
+                            xlDataObj.JobDetailUrl = BrowserAutoBot.GetApplyLink($"{IndeedBaseUrl}/viewjob?jk=" + id,_page);
                             xlDataObj = updateAmazonId(xlDataObj).Result;
                             jobs.Add(xlDataObj);
                             xlDataObj = JsonConvert.DeserializeObject<xlData>(JsonConvert.SerializeObject(xlDataObj));
@@ -359,7 +269,7 @@ namespace IndeedCrawler
                                 }
 
                                 xlDataObj.xlJobIndex = index + 1;
-                                xlDataObj.JobDetailUrl = GetApplyLink($"{IndeedBaseUrl}/viewjob?jk=" + id);
+                                xlDataObj.JobDetailUrl = BrowserAutoBot.GetApplyLink($"{IndeedBaseUrl}/viewjob?jk=" + id,_page);
                                 xlDataObj = updateAmazonId(xlDataObj).Result;
                                 jobs.Add(xlDataObj);
                                 xlDataObj = JsonConvert.DeserializeObject<xlData>(JsonConvert.SerializeObject(xlDataObj));
@@ -378,7 +288,7 @@ namespace IndeedCrawler
                             var joblocationArray = xlDataObj.JobLocation.Split(',');
                             xlDataObj.JobLocation = joblocationArray[0] + ", " + joblocationArray[1].Trim().Split(' ')[0];
                         }
-                        xlDataObj.JobDetailUrl = GetApplyLink($"{IndeedBaseUrl}/viewjob?jk=" + id);
+                        xlDataObj.JobDetailUrl = BrowserAutoBot.GetApplyLink($"{IndeedBaseUrl}/viewjob?jk=" + id,_page);
                         xlDataObj = updateAmazonId(xlDataObj).Result;
                         jobs.Add(xlDataObj);
                         xlDataObj = JsonConvert.DeserializeObject<xlData>(JsonConvert.SerializeObject(xlDataObj));
@@ -397,16 +307,16 @@ namespace IndeedCrawler
             {
                 if (xlDataObj.JobCompany.ToLower().Contains("amazon") && xlDataObj.JobDetailUrl != "Application Form")
                 {
-                    var amazonContent = await GetHtmlContentFromUrl(xlDataObj.JobDetailUrl, true).ConfigureAwait(false);
-                    var amazonId = getAmazonJobId(amazonContent);
+                    var amazonContent = await BrowserAutoBot.GetHtmlContentFromUrl(xlDataObj.JobDetailUrl, _page, true).ConfigureAwait(false);
+                    var amazonId = Helper.GetAmazonJobId(amazonContent);
                     var tried = 0;
                     while (amazonId == "" && tried < 5)
                     {
                         Thread.Sleep(5000);
                         tried++;
-                        amazonId = getAmazonJobId(await GetPageContent());
+                        amazonId = Helper.GetAmazonJobId(await BrowserAutoBot.GetPageContent(_page));
                     }
-                    xlDataObj.JobDetailUrl = GetCurrentPageUrl();
+                    xlDataObj.JobDetailUrl = BrowserAutoBot.GetCurrentPageUrl(_page);
                     xlDataObj.AmazonJobId = amazonId;
                 }
             }
@@ -437,26 +347,7 @@ namespace IndeedCrawler
             }
         }
 
-        public string GetApplyLink(string url)
-        {
-            var returnVal = "";
 
-            HtmlAgilityPack.HtmlDocument doc = new HtmlAgilityPack.HtmlDocument();
-            doc.LoadHtml(GetHtmlContentFromUrl(url).Result);
-            var elemt = doc.DocumentNode.QuerySelector("#applyButtonLinkContainer a");
-            if (elemt == null)
-            {
-                returnVal = "";
-            }
-            returnVal = elemt?.GetAttributeValue("href", null) ?? "";
-
-            if (string.IsNullOrEmpty(returnVal))
-            {
-                returnVal = "Application Form";
-            }
-
-            return returnVal;
-        }
 
         private void button2_Click(object sender, EventArgs e)
         {

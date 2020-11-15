@@ -7,6 +7,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IndeedCrawler_High_Bid", "I
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PandoLogicCrawler", "crawler\PandoLogicCrawler.csproj", "{C0DD1A83-F32C-4E06-AFC5-1989ACF1C7F4}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AmazonJobComarisionCheck", "AmazonJobComarisionCheck\AmazonJobComarisionCheck.csproj", "{5345BAFB-245E-47DC-A9B8-142D2D3ED0C8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Shared", "Shared\Shared.csproj", "{2FD518BC-6A5B-4B95-97ED-2B4A729EBFEF}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +25,14 @@ Global
 		{C0DD1A83-F32C-4E06-AFC5-1989ACF1C7F4}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C0DD1A83-F32C-4E06-AFC5-1989ACF1C7F4}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C0DD1A83-F32C-4E06-AFC5-1989ACF1C7F4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5345BAFB-245E-47DC-A9B8-142D2D3ED0C8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5345BAFB-245E-47DC-A9B8-142D2D3ED0C8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5345BAFB-245E-47DC-A9B8-142D2D3ED0C8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5345BAFB-245E-47DC-A9B8-142D2D3ED0C8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2FD518BC-6A5B-4B95-97ED-2B4A729EBFEF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2FD518BC-6A5B-4B95-97ED-2B4A729EBFEF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2FD518BC-6A5B-4B95-97ED-2B4A729EBFEF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2FD518BC-6A5B-4B95-97ED-2B4A729EBFEF}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
