@@ -9,6 +9,8 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using ExcelDataReader;
 using Newtonsoft.Json;
+using PuppeteerSharp;
+using Shared;
 using HtmlDocument = HtmlAgilityPack.HtmlDocument;
 
 
@@ -16,12 +18,16 @@ namespace crawler
 {
     public partial class Form1 : Form
     {
+        private Page _page;
+
         public Form1()
         {
             InitializeComponent();
+            _page = BrowserAutoBot.setupBrowser().Result;
+
         }
 
-        private string baseUrl = "https://www.indeed.com/";//"https://www.indeed.com/";//
+        private string baseUrl = "https://ca.indeed.com/";//
         static string sFileName;
         static int iRow, iCol = 2;
         static List<xlData> jobs = new List<xlData>();
@@ -43,6 +49,7 @@ namespace crawler
 
                     Task.Run(() =>
                     {
+                        jobs = new List<xlData>();
                         processRows(dataSet);
                         ExportToExcel(jobs);
                         Invoke((Action)(() =>
@@ -99,10 +106,9 @@ namespace crawler
             public string JobWage { get; internal set; }
 
             public string JobAge { get; set; }
-            public string DetailUrl { get; set; }
+            public string JobDetailUrl { get; set; }
             public string SearchUrl { get; set; }
-
-            public string JobId { get; set; }
+            public string AmazonJobId { get; set; }
         }
         private DataSet readExcel(string sFile)
         {
@@ -193,7 +199,7 @@ namespace crawler
                         jobTitle = item.QuerySelector("h2 a").InnerText.Replace("amp;", "").Replace("\n", "");
                     }
                     var company = item.QuerySelector(".company")?.InnerText.Replace("\n", "");
-                    var jobAge = item.QuerySelector(".date").InnerText.Replace("days ago", "").Replace("day ago", "").Replace("Just Posted", "0").Replace("Today", "0");
+                    var jobAge = item.QuerySelector(".date").InnerText;
 
                     var jobLocation = item.QuerySelector(".location").InnerText;
 
@@ -213,9 +219,9 @@ namespace crawler
                     if (containsPandoLogicWord && xlDataObj.JobCompany?.ToLower().Trim() == "amazon")
                     {
                         xlDataObj.JobWage = jobWage;
-                        xlDataObj.JobTitle = jobTitle;
+                        xlDataObj.JobTitle = WebUtility.HtmlDecode(jobTitle);
                         xlDataObj.JobCompany = company;
-                        xlDataObj.JobAge = jobAge;
+                        xlDataObj.JobAge = jobAge.HandleStringDateFromIndeed();
                         xlDataObj.JobLocation = jobLocation;
                         if (xlDataObj.JobLocation.IndexOf(",", StringComparison.Ordinal) > -1)
                         {
@@ -223,11 +229,8 @@ namespace crawler
                             xlDataObj.JobLocation = joblocationArray[0] + ", " + joblocationArray[1].Trim().Split(' ')[0];
                         }
                         xlDataObj.JobPosition = index + 1;
-                        xlDataObj.DetailUrl  = GetApplyLink(baseUrl + "viewjob?jk=" + id);
-                        if (string.IsNullOrEmpty(xlDataObj.DetailUrl))
-                        {
-                            xlDataObj.DetailUrl = "Application Form";
-                        }
+                        xlDataObj.JobDetailUrl = BrowserAutoBot.GetApplyLink(baseUrl + "viewjob?jk=" + id, 1).HandleEmptyUrl();
+                        xlDataObj = updateAmazonId(xlDataObj).Result;
                         break;
                     }
                 }
@@ -243,6 +246,32 @@ namespace crawler
                 throw e;
             }
 
+        }
+        private async Task<xlData> updateAmazonId(xlData xlDataObj)
+        {
+            try
+            {
+                if (xlDataObj.JobCompany.ToLower().Contains("amazon") && xlDataObj.JobDetailUrl != "Application Form")
+                {
+                    var amazonContent = await BrowserAutoBot.GetHtmlContentFromUrl(xlDataObj.JobDetailUrl, _page, true).ConfigureAwait(false);
+                    var amazonId = Helper.GetAmazonJobId(amazonContent);
+                    var tried = 0;
+                    while (amazonId == "" && tried < 5)
+                    {
+                        Thread.Sleep(5000);
+                        tried++;
+                        amazonId = Helper.GetAmazonJobId(await BrowserAutoBot.GetPageContent(_page));
+                    }
+                    xlDataObj.JobDetailUrl = BrowserAutoBot.GetCurrentPageUrl(_page);
+                    xlDataObj.AmazonJobId = amazonId;
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                //throw;
+            }
+            return xlDataObj;
         }
 
         private DataTable ExportToExcel(List<xlData> jobs)
@@ -273,8 +302,8 @@ namespace crawler
                     item.JobPosition > 0 ? item.JobLocation : "No Job found",
                     item.JobPosition > 0 ? item.JobWage : "No Job found",
                     item.JobPosition > 0 ? item.JobAge : "No Job found",
-                    item.JobPosition > 0 ? (item.DetailUrl ?? "") : "No Job found" ,
-                    item.JobPosition > 0 ? (item.JobId ?? "") : "No Job found"
+                    item.JobPosition > 0 ? (item.JobDetailUrl ?? "") : "No Job found",
+                    item.JobPosition > 0 ? (item.AmazonJobId ?? "") : "No Job found"
                     );
             }
 
@@ -286,6 +315,10 @@ namespace crawler
             return table;
         }
 
+        private void button2_Click(object sender, EventArgs e)
+        {
+            ExportToExcel(jobs);
+        }
 
         private Dictionary<string, string> jobDetails(List<string> jobIds)
         {
@@ -305,21 +338,7 @@ namespace crawler
             }
         }
 
-        private string GetApplyLink(string url)
-        {
-            var returnVal = "";
 
-            HtmlAgilityPack.HtmlWeb web = new HtmlAgilityPack.HtmlWeb
-            {
-                UserAgent =
-                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.83 Safari/537.36"
-            };
-            HtmlAgilityPack.HtmlDocument doc = web.Load(url);
-            var elemt = doc.DocumentNode.QuerySelector("#applyButtonLinkContainer a");
-           
-            returnVal = elemt?.GetAttributeValue("href", null) ?? "";
-            return returnVal;
-        }
     }
 
 

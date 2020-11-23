@@ -20,17 +20,14 @@ namespace AmazonJobComarisionCheck
 
     public partial class Form1 : Form
     {
-        private Page _page;
 
         string IndeedBaseUrl = "https://www.indeed.com";
         static string sFileName;
-        static int iRow, iCol = 2;
         static List<xlData> jobs = new List<xlData>();
 
         public Form1()
         {
             InitializeComponent();
-            _page = BrowserAutoBot.setupBrowser().Result;
 
         }
 
@@ -48,18 +45,13 @@ namespace AmazonJobComarisionCheck
                 {
                     DataSet dataSet = readExcel(sFileName);
 
-                    Task.Run(() =>
-                    {
-                        jobs = new List<xlData>();
-                        processRows(dataSet);
-                        ExportToExcel(jobs);
-                        Invoke((Action)(() =>
-                        {
-                            MessageBox.Show("Jobs done");
-                            label2.Text = "";
-                        }));
+                    jobs = new List<xlData>();
+                    PrepareRows(dataSet);
+                    ProcessRows();
+                    ExportToExcel(jobs);
+                    MessageBox.Show("Jobs done");
+                    label2.Text = "";
 
-                    });
                 }
 
             }
@@ -97,10 +89,45 @@ namespace AmazonJobComarisionCheck
 
             return dataSet;
         }
-        void processRows(DataSet dataSet)
+        void ProcessRows()
+        {
+            List<Task> tss = new List<Task>();
+            var instCount = 7;
+            var pageList = new List<Page>();
+            for (int i = 0; i < instCount; i++)
+            {
+                var page = BrowserAutoBot.setupBrowser().Result;
+                pageList.Add(page);
+            }
+            while (jobs.Any(x => !x.isProcessed))
+            {
+                var currentBatch = jobs.Where(x => !x.isProcessed).Take(instCount).ToList();
+                foreach (var xlData in currentBatch)
+                {
+                    Invoke((Action)(() => { label2.Text = $@"Processing {jobs.IndexOf(xlData) + 1} out of {jobs.Count - 1}"; }));
+
+                    if (string.IsNullOrEmpty(xlData.JobDetailUrl))
+                    {
+                        var ts = Task.Run(async () =>
+                          {
+                              await Search(xlData, 1, pageList[currentBatch.IndexOf(xlData)]);
+                              xlData.isProcessed = true;
+                              //await page.CloseAsync().ConfigureAwait(false);
+                          });
+                        tss.Add(ts);
+
+                    }
+
+                }
+
+                Task.WhenAll(tss).Wait();
+                tss.Clear();
+            }
+        }
+        void PrepareRows(DataSet dataSet)
         {
             var datatable = dataSet.Tables[0];
-            for (iRow = 1; iRow < datatable.Rows.Count; iRow++) // START FROM THE SECOND ROW.
+            for (var iRow = 1; iRow < datatable.Rows.Count; iRow++) // START FROM THE SECOND ROW.
             {
                 xlData xlDataObj = new xlData();
 
@@ -109,10 +136,6 @@ namespace AmazonJobComarisionCheck
                     return;
                 }
 
-                Invoke((Action)(() =>
-                {
-                    label2.Text = $@"Processing {iRow - 1} out of {datatable.Rows.Count - 1}";
-                }));
                 xlDataObj.xlDate = datatable.Rows[iRow][0].ToString();
                 xlDataObj.xlSite = datatable.Rows[iRow][1].ToString();
                 xlDataObj.xlKeyword = datatable.Rows[iRow][2].ToString().ToLower().Replace("empty", "");
@@ -121,10 +144,11 @@ namespace AmazonJobComarisionCheck
                 xlDataObj.xlJobLocation = xlDataObj.xlJobLocation.ToLower().Replace("empty", "");
                 if (string.IsNullOrEmpty(xlDataObj.xlKeyword) && string.IsNullOrEmpty(xlDataObj.xlJobLocation))
                     return;
-                Search(xlDataObj, 1);
+
+                jobs.Add(xlDataObj);
             }
         }
-        private void Search(xlData xlDataObj, int indx)
+        private async Task Search(xlData xlDataObj, int indx, Page _page)
         {
             List<string> jobIds = new List<string>();
 
@@ -143,7 +167,7 @@ namespace AmazonJobComarisionCheck
                 jobUrl = jobUrl + "?l=" + xlDataObj.xlJobLocation;
             }
             HtmlAgilityPack.HtmlDocument doc = new HtmlAgilityPack.HtmlDocument();
-            doc.LoadHtml(BrowserAutoBot.GetHtmlContentFromUrl(jobUrl, _page).Result);//GetContentFromUrl(jobUrl);
+            doc.LoadHtml(await BrowserAutoBot.GetHtmlContentFromUrl(jobUrl, _page).ConfigureAwait(false));//GetContentFromUrl(jobUrl);
             var jobList = doc.QuerySelectorAll(".jobsearch-SerpJobCard.unifiedRow.row");
 
             foreach (var item in jobList)
@@ -152,8 +176,7 @@ namespace AmazonJobComarisionCheck
                 jobIds.Add(id);
             }
 
-            var isLastSaved = false;
-            jobDetails(jobIds);
+            await jobDetails(jobIds).ConfigureAwait(false);
             for (var index = 0; index < jobList.Count; index++)
             {
                 var item = jobList[index];
@@ -171,12 +194,19 @@ namespace AmazonJobComarisionCheck
                 var company = item.QuerySelector(".company")?.InnerText.Replace("\n", "");
                 if (company.ToLower().Contains("amazon"))
                 {
-                    var jobDetailUrl = BrowserAutoBot.GetApplyLink($"{IndeedBaseUrl}/viewjob?jk=" + id, _page);
-                    var jobid = GetAmazonId(jobDetailUrl).Result;
-                    if (!string.IsNullOrEmpty(jobid) && jobid == xlDataObj.xlAmazonId)
+                    var jobDetailUrl = BrowserAutoBot.GetApplyLink($"{IndeedBaseUrl}/viewjob?jk=" + id, 1).HandleEmptyUrl();
+                    var jobid = await GetAmazonId(jobDetailUrl, _page).ConfigureAwait(false);
+                    if (!string.IsNullOrEmpty(jobid))
                     {
-                        xlDataObj.JobDetailUrl = BrowserAutoBot.GetCurrentPageUrl(_page);
-                        break;
+                        foreach (var jb in jobs.Where(jb => jb.xlAmazonId == jobid))
+                        {
+                            jb.JobDetailUrl = BrowserAutoBot.GetCurrentPageUrl(_page);
+                        }
+
+                        if (jobid == xlDataObj.xlAmazonId)
+                        {
+                            break;
+                        }
                     }
 
                 }
@@ -190,10 +220,10 @@ namespace AmazonJobComarisionCheck
             //}
             //else
             //{
-                jobs.Add(xlDataObj);
-           // }
+            //jobs.Add(xlDataObj);
+            // }
         }
-        private async Task<string> GetAmazonId(string JobDetailUrl)
+        private async Task<string> GetAmazonId(string JobDetailUrl, Page _page)
         {
             try
             {
@@ -220,7 +250,7 @@ namespace AmazonJobComarisionCheck
             return "";
         }
 
-        private Dictionary<string, string> jobDetails(List<string> jobIds)
+        private async Task<Dictionary<string, string>> jobDetails(List<string> jobIds)
         {
             string delimiter = ",";
             var keywords = String.Join(delimiter, jobIds);
@@ -233,7 +263,7 @@ namespace AmazonJobComarisionCheck
                 wc.Headers["UserAgent"] =
                     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.83 Safari/537.36";
                 Console.WriteLine("downloading-> " + url);
-                html = wc.DownloadString(url);
+                html = await wc.DownloadStringTaskAsync(url).ConfigureAwait(false);
                 return JsonConvert.DeserializeObject<Dictionary<string, string>>(html);
             }
         }
@@ -276,5 +306,6 @@ namespace AmazonJobComarisionCheck
         public string xlSite { get; set; }
         public string xlKeyword { get; set; }
         public string JobDetailUrl { get; set; }
+        public bool isProcessed { get; set; } = false;
     }
 }

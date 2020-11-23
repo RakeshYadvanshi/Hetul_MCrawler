@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Threading.Tasks;
 using PuppeteerSharp;
 
@@ -6,22 +7,31 @@ namespace Shared
 {
     public class BrowserAutoBot
     {
+        private static Browser _browser;
         public static async Task<Page> setupBrowser()
         {
-            var browser = await Puppeteer.LaunchAsync(new LaunchOptions
+            _browser = await Puppeteer.LaunchAsync(new LaunchOptions
             {
                 Headless = false,
-                ExecutablePath = @"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",//"C:\Users\Admin\AppData\Local\Chromium\Application\chrome.exe",
+                ExecutablePath =
+                      @"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe", //"C:\Users\Admin\AppData\Local\Chromium\Application\chrome.exe",
                 LogProcess = true,
                 IgnoreHTTPSErrors = true,
-                Args = new[] {
+                Args = new[]
+                  {
                     "--no-sandbox",
+                    "--incognito",
                     "--disable-infobars",
                     "--disable-setuid-sandbox",
                     "--ignore-ICertificatePolicy-errors",
                 }
             }).ConfigureAwait(false);
-            return await browser.NewPageAsync().ConfigureAwait(false);
+            //for (int i = 0; i < 5; i++)
+            //{
+            //    await _browser.PagesAsync().ConfigureAwait(false);
+
+            //}
+            return (await _browser.PagesAsync().ConfigureAwait(false)).First();
         }
 
         public static async Task<string> GetPageContent(Page page)
@@ -44,12 +54,13 @@ namespace Shared
                 }
                 else
                 {
+
                     await page.GoToAsync(amazonUrl, new NavigationOptions()
                     {
                         Timeout = 0,
                         WaitUntil = new WaitUntilNavigation[]
                         {
-                            WaitUntilNavigation.Networkidle2
+                            WaitUntilNavigation.DOMContentLoaded
                         }
                     }).ConfigureAwait(false);
 
@@ -64,24 +75,37 @@ namespace Shared
             return amazonContent;
         }
 
-        public static string GetApplyLink(string url, Page page)
+        //public static string GetApplyLink(string url,Page page)
+        //{
+        //    var returnVal = "";
+
+        //    HtmlAgilityPack.HtmlDocument doc = new HtmlAgilityPack.HtmlDocument();
+        //    doc.LoadHtml(GetHtmlContentFromUrl(url, page).Result);
+        //    var elemt = doc.DocumentNode.QuerySelector("#applyButtonLinkContainer a");
+        //    if (elemt == null)
+        //    {
+        //        returnVal = "";
+        //    }
+        //    returnVal = elemt?.GetAttributeValue("href", null) ?? "";
+
+        //    if (string.IsNullOrEmpty(returnVal))
+        //    {
+        //        returnVal = "Application Form";
+        //    }
+
+        //    return returnVal;
+        //}
+
+        public static string GetApplyLink(string url, int tryiNdex)
         {
-            var returnVal = "";
-
-            HtmlAgilityPack.HtmlDocument doc = new HtmlAgilityPack.HtmlDocument();
-            doc.LoadHtml(GetHtmlContentFromUrl(url, page).Result);
+            HtmlAgilityPack.HtmlDocument doc = Helper.GetContentFromUrl(url);
             var elemt = doc.DocumentNode.QuerySelector("#applyButtonLinkContainer a");
-            if (elemt == null)
-            {
-                returnVal = "";
-            }
-            returnVal = elemt?.GetAttributeValue("href", null) ?? "";
 
-            if (string.IsNullOrEmpty(returnVal))
+            var returnVal = elemt?.GetAttributeValue("href", null) ?? "";
+            if (string.IsNullOrEmpty(returnVal) && tryiNdex < 3)
             {
-                returnVal = "Application Form";
+                returnVal = GetApplyLink(url, ++tryiNdex);
             }
-
             return returnVal;
         }
     }
