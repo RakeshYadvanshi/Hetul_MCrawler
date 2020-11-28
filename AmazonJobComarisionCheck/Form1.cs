@@ -47,10 +47,15 @@ namespace AmazonJobComarisionCheck
 
                     jobs = new List<xlData>();
                     PrepareRows(dataSet);
-                    ProcessRows();
-                    ExportToExcel(jobs);
-                    MessageBox.Show("Jobs done");
-                    label2.Text = "";
+                    Task.Run(() =>
+                    {
+                        ProcessRows();
+                        ExportToExcel(jobs);
+                        MessageBox.Show("Jobs done");
+                        //label2.Text = "";
+
+
+                    });
 
                 }
 
@@ -89,42 +94,62 @@ namespace AmazonJobComarisionCheck
 
             return dataSet;
         }
+        private void workd()
+        {
+            var currentBatch = jobs.Where(x => x.isProcessed == workStatus.pending && string.IsNullOrEmpty(x.JobDetailUrl)).FirstOrDefault();
+            var page = BrowserAutoBot.setupBrowser().Result;
+            while (currentBatch != null)
+            {
+                Invoke((Action)(() => { label2.Text = $@"Processing {jobs.IndexOf(currentBatch) + 1} out of {jobs.Count - 1}"; }));
+                currentBatch.isProcessed = workStatus.started;
+                Search(currentBatch, 1, page).Wait();
+                currentBatch.isProcessed = workStatus.completed;
+                currentBatch = jobs.Where(x => x.isProcessed == workStatus.pending && string.IsNullOrEmpty(x.JobDetailUrl)).FirstOrDefault();
+            }
+        }
         void ProcessRows()
         {
             List<Task> tss = new List<Task>();
-            var instCount = 7;
-            var pageList = new List<Page>();
+            var instCount = 5;
+            //var pageList = new List<Page>();
             for (int i = 0; i < instCount; i++)
             {
-                var page = BrowserAutoBot.setupBrowser().Result;
-                pageList.Add(page);
-            }
 
-            var useBrowserasBOt = chkbxLoadIndeedInBrowser.Checked;
-            while (jobs.Any(x => !x.isProcessed))
-            {
-                var currentBatch = jobs.Where(x => !x.isProcessed).Take(instCount).ToList();
-                foreach (var xlData in currentBatch)
-                {
-                    Invoke((Action)(() => { label2.Text = $@"Processing {jobs.IndexOf(xlData) + 1} out of {jobs.Count - 1}"; }));
-
-                    if (string.IsNullOrEmpty(xlData.JobDetailUrl))
-                    {
-                        var ts = Task.Run(async () =>
+                var ts = Task.Run(async () =>
                           {
-                              await Search(xlData, 1, pageList[currentBatch.IndexOf(xlData)], useBrowserasBOt);
-                              xlData.isProcessed = true;
-                              //await page.CloseAsync().ConfigureAwait(false);
+                              workd();
                           });
-                        tss.Add(ts);
+                tss.Add(ts);
 
-                    }
-
-                }
-
-                Task.WhenAll(tss).Wait();
-                tss.Clear();
+                //pageList.Add(page);
             }
+
+            Task.WaitAll(tss.ToArray());
+
+            //while (jobs.Any(x => !x.isProcessed))
+            //{
+            //    var currentBatch = jobs.Where(x => !x.isProcessed).Take(instCount).ToList();
+            //    foreach (var xlData in currentBatch)
+            //    {
+            //        Invoke((Action)(() => { label2.Text = $@"Processing {jobs.IndexOf(xlData) + 1} out of {jobs.Count - 1}"; }));
+
+            //        if (string.IsNullOrEmpty(xlData.JobDetailUrl))
+            //        {
+            //            var ts = Task.Run(async () =>
+            //              {
+            //                  await Search(xlData, 1, pageList[currentBatch.IndexOf(xlData)]);
+            //                  xlData.isProcessed = true;
+            //                  //await page.CloseAsync().ConfigureAwait(false);
+            //              });
+            //            tss.Add(ts);
+
+            //        }
+
+            //    }
+
+            //    Task.WhenAll(tss).Wait();
+            //    tss.Clear();
+            //}
         }
         void PrepareRows(DataSet dataSet)
         {
@@ -143,10 +168,11 @@ namespace AmazonJobComarisionCheck
                 xlDataObj.xlKeyword = datatable.Rows[iRow][2].ToString().ToLower().Replace("empty", "");
                 xlDataObj.xlJobLocation = datatable.Rows[iRow][3].ToString();
                 xlDataObj.xlAmazonId = datatable.Rows[iRow][4].ToString();
+                xlDataObj.JobDetailUrl = datatable.Rows[iRow][5].ToString();
                 xlDataObj.xlJobLocation = xlDataObj.xlJobLocation.ToLower().Replace("empty", "");
+
                 if (string.IsNullOrEmpty(xlDataObj.xlKeyword) && string.IsNullOrEmpty(xlDataObj.xlJobLocation))
                     return;
-
                 jobs.Add(xlDataObj);
             }
         }
@@ -308,6 +334,12 @@ namespace AmazonJobComarisionCheck
         public string xlSite { get; set; }
         public string xlKeyword { get; set; }
         public string JobDetailUrl { get; set; }
-        public bool isProcessed { get; set; } = false;
+        public workStatus isProcessed { get; set; } = workStatus.pending;
+    }
+    public enum workStatus
+    {
+        started,
+        pending,
+        completed
     }
 }
