@@ -81,7 +81,7 @@ namespace Shared
         public static string GetApplyLink(string url, int tryiNdex, Page page, bool useBrowserBot = false)
         {
             HtmlAgilityPack.HtmlDocument doc = new HtmlDocument();
-            doc.LoadHtml(GetHtmlContentFromUrl(url, page, true).Result);
+            doc.LoadHtml(GetHtmlContentFromUrl(url, page, useBrowserBot).Result);
             var elemt = doc.DocumentNode.QuerySelector("#applyButtonLinkContainer a");
 
             var returnVal = elemt?.GetAttributeValue("href", null) ?? "";
@@ -99,18 +99,18 @@ namespace Shared
             try
             {
 
-                using (WebClient wc = new WebClient())
-                {
-                    wc.Headers.Add("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.83 Safari/537.36");
-                    str = wc.DownloadString(url);
-                }
-                //var web = new HtmlWeb
+                //using (WebClient wc = new WebClient())
                 //{
-                //    UserAgent =
-                //        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.83 Safari/537.36"
-                //};
-                //var doc = web.Load(url);
-
+                //    wc.Headers.Add("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.83 Safari/537.36");
+                //    str = wc.DownloadString(url);
+                //}
+                var web = new HtmlWeb
+                {
+                    UserAgent =
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.83 Safari/537.36"
+                };
+                var doc = web.Load(url);
+                return doc;
 
             }
             catch (Exception e)

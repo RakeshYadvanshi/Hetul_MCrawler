@@ -110,7 +110,7 @@ namespace AmazonJobComarisionCheck
         void ProcessRows()
         {
             List<Task> tss = new List<Task>();
-            var instCount = 5;
+            var instCount = 1;
             //var pageList = new List<Page>();
             for (int i = 0; i < instCount; i++)
             {
@@ -222,7 +222,7 @@ namespace AmazonJobComarisionCheck
                 var company = item.QuerySelector(".company")?.InnerText.Replace("\n", "");
                 if (company.ToLower().Contains("amazon"))
                 {
-                    var jobDetailUrl = BrowserAutoBot.GetApplyLink($"{IndeedBaseUrl}/viewjob?jk=" + id, 1, _page).HandleEmptyUrl();
+                    var jobDetailUrl = BrowserAutoBot.GetApplyLink($"{IndeedBaseUrl}/viewjob?jk=" + id, 1, _page, useBrowserasBOt).HandleEmptyUrl();
                     var jobid = await GetAmazonId(jobDetailUrl, _page).ConfigureAwait(false);
                     if (!string.IsNullOrEmpty(jobid))
                     {
