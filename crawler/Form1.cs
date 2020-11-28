@@ -229,7 +229,7 @@ namespace crawler
                             xlDataObj.JobLocation = joblocationArray[0] + ", " + joblocationArray[1].Trim().Split(' ')[0];
                         }
                         xlDataObj.JobPosition = index + 1;
-                        xlDataObj.JobDetailUrl = BrowserAutoBot.GetApplyLink(baseUrl + "viewjob?jk=" + id, 1).HandleEmptyUrl();
+                        xlDataObj.JobDetailUrl = BrowserAutoBot.GetApplyLink(baseUrl + "viewjob?jk=" + id, 1,_page).HandleEmptyUrl();
                         xlDataObj = updateAmazonId(xlDataObj).Result;
                         break;
                     }

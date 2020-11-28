@@ -249,7 +249,7 @@ namespace IndeedCrawler
                                 xlDataObj.JobLocation = joblocationArray[0] + ", " + joblocationArray[1].Trim().Split(' ')[0];
                             }
                             isLastSaved = true;
-                            xlDataObj.JobDetailUrl = BrowserAutoBot.GetApplyLink($"{IndeedBaseUrl}/viewjob?jk=" + id,1).HandleEmptyUrl();
+                            xlDataObj.JobDetailUrl = BrowserAutoBot.GetApplyLink($"{IndeedBaseUrl}/viewjob?jk=" + id,1,_page).HandleEmptyUrl();
                             xlDataObj = updateAmazonId(xlDataObj).Result;
                             jobs.Add(xlDataObj);
                             xlDataObj = JsonConvert.DeserializeObject<xlData>(JsonConvert.SerializeObject(xlDataObj));
@@ -270,7 +270,7 @@ namespace IndeedCrawler
                                 }
 
                                 xlDataObj.xlJobIndex = index + 1;
-                                xlDataObj.JobDetailUrl = BrowserAutoBot.GetApplyLink($"{IndeedBaseUrl}/viewjob?jk=" + id,1).HandleEmptyUrl();
+                                xlDataObj.JobDetailUrl = BrowserAutoBot.GetApplyLink($"{IndeedBaseUrl}/viewjob?jk=" + id,1,_page).HandleEmptyUrl();
                                 xlDataObj = updateAmazonId(xlDataObj).Result;
                                 jobs.Add(xlDataObj);
                                 xlDataObj = JsonConvert.DeserializeObject<xlData>(JsonConvert.SerializeObject(xlDataObj));
@@ -289,7 +289,7 @@ namespace IndeedCrawler
                             var joblocationArray = xlDataObj.JobLocation.Split(',');
                             xlDataObj.JobLocation = joblocationArray[0] + ", " + joblocationArray[1].Trim().Split(' ')[0];
                         }
-                        xlDataObj.JobDetailUrl = BrowserAutoBot.GetApplyLink($"{IndeedBaseUrl}/viewjob?jk=" + id,1).HandleEmptyUrl();
+                        xlDataObj.JobDetailUrl = BrowserAutoBot.GetApplyLink($"{IndeedBaseUrl}/viewjob?jk=" + id,1,_page).HandleEmptyUrl();
                         xlDataObj = updateAmazonId(xlDataObj).Result;
                         jobs.Add(xlDataObj);
                         xlDataObj = JsonConvert.DeserializeObject<xlData>(JsonConvert.SerializeObject(xlDataObj));

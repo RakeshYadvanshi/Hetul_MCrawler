@@ -99,6 +99,8 @@ namespace AmazonJobComarisionCheck
                 var page = BrowserAutoBot.setupBrowser().Result;
                 pageList.Add(page);
             }
+
+            var useBrowserasBOt = chkbxLoadIndeedInBrowser.Checked;
             while (jobs.Any(x => !x.isProcessed))
             {
                 var currentBatch = jobs.Where(x => !x.isProcessed).Take(instCount).ToList();
@@ -110,7 +112,7 @@ namespace AmazonJobComarisionCheck
                     {
                         var ts = Task.Run(async () =>
                           {
-                              await Search(xlData, 1, pageList[currentBatch.IndexOf(xlData)]);
+                              await Search(xlData, 1, pageList[currentBatch.IndexOf(xlData)], useBrowserasBOt);
                               xlData.isProcessed = true;
                               //await page.CloseAsync().ConfigureAwait(false);
                           });
@@ -148,7 +150,7 @@ namespace AmazonJobComarisionCheck
                 jobs.Add(xlDataObj);
             }
         }
-        private async Task Search(xlData xlDataObj, int indx, Page _page)
+        private async Task Search(xlData xlDataObj, int indx, Page _page, bool useBrowserasBOt)
         {
             List<string> jobIds = new List<string>();
 
@@ -167,7 +169,7 @@ namespace AmazonJobComarisionCheck
                 jobUrl = jobUrl + "?l=" + xlDataObj.xlJobLocation;
             }
             HtmlAgilityPack.HtmlDocument doc = new HtmlAgilityPack.HtmlDocument();
-            doc.LoadHtml(await BrowserAutoBot.GetHtmlContentFromUrl(jobUrl, _page).ConfigureAwait(false));//GetContentFromUrl(jobUrl);
+            doc.LoadHtml(await BrowserAutoBot.GetHtmlContentFromUrl(jobUrl, _page, useBrowserasBOt).ConfigureAwait(false));//GetContentFromUrl(jobUrl);
             var jobList = doc.QuerySelectorAll(".jobsearch-SerpJobCard.unifiedRow.row");
 
             foreach (var item in jobList)
@@ -194,7 +196,7 @@ namespace AmazonJobComarisionCheck
                 var company = item.QuerySelector(".company")?.InnerText.Replace("\n", "");
                 if (company.ToLower().Contains("amazon"))
                 {
-                    var jobDetailUrl = BrowserAutoBot.GetApplyLink($"{IndeedBaseUrl}/viewjob?jk=" + id, 1).HandleEmptyUrl();
+                    var jobDetailUrl = BrowserAutoBot.GetApplyLink($"{IndeedBaseUrl}/viewjob?jk=" + id, 1,_page).HandleEmptyUrl();
                     var jobid = await GetAmazonId(jobDetailUrl, _page).ConfigureAwait(false);
                     if (!string.IsNullOrEmpty(jobid))
                     {
@@ -229,7 +231,7 @@ namespace AmazonJobComarisionCheck
             {
                 if (JobDetailUrl != "Application Form")
                 {
-                    var amazonContent = await BrowserAutoBot.GetHtmlContentFromUrl(JobDetailUrl, _page, true).ConfigureAwait(false);
+                    var amazonContent = await BrowserAutoBot.GetHtmlContentFromUrl(JobDetailUrl, _page).ConfigureAwait(false);
                     var amazonId = Helper.GetAmazonJobId(amazonContent);
                     var tried = 0;
                     while (amazonId == "" && tried < 5)

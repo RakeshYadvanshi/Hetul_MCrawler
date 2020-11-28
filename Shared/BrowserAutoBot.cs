@@ -1,6 +1,9 @@
 ﻿using System;
 using System.Linq;
+using System.Net;
+using System.Threading;
 using System.Threading.Tasks;
+using HtmlAgilityPack;
 using PuppeteerSharp;
 
 namespace Shared
@@ -43,14 +46,14 @@ namespace Shared
             return page.Url;
         }
 
-        public static async Task<string> GetHtmlContentFromUrl(string amazonUrl, Page page, bool isAmazone = false)
+        public static async Task<string> GetHtmlContentFromUrl(string amazonUrl, Page page, bool loadUsingBrowserBot = false)
         {
             var amazonContent = "";
             try
             {
-                if (!isAmazone)
+                if (!loadUsingBrowserBot)
                 {
-                    return Helper.GetContentFromUrl(amazonUrl).DocumentNode.OuterHtml;
+                    return GetContentFromUrl(amazonUrl).DocumentNode.OuterHtml;
                 }
                 else
                 {
@@ -69,44 +72,60 @@ namespace Shared
             }
             catch (Exception e)
             {
-                return await GetHtmlContentFromUrl(amazonUrl, page, isAmazone);
+                return await GetHtmlContentFromUrl(amazonUrl, page, loadUsingBrowserBot);
             }
 
             return amazonContent;
         }
 
-        //public static string GetApplyLink(string url,Page page)
-        //{
-        //    var returnVal = "";
-
-        //    HtmlAgilityPack.HtmlDocument doc = new HtmlAgilityPack.HtmlDocument();
-        //    doc.LoadHtml(GetHtmlContentFromUrl(url, page).Result);
-        //    var elemt = doc.DocumentNode.QuerySelector("#applyButtonLinkContainer a");
-        //    if (elemt == null)
-        //    {
-        //        returnVal = "";
-        //    }
-        //    returnVal = elemt?.GetAttributeValue("href", null) ?? "";
-
-        //    if (string.IsNullOrEmpty(returnVal))
-        //    {
-        //        returnVal = "Application Form";
-        //    }
-
-        //    return returnVal;
-        //}
-
-        public static string GetApplyLink(string url, int tryiNdex)
+        public static string GetApplyLink(string url, int tryiNdex, Page page, bool useBrowserBot = false)
         {
-            HtmlAgilityPack.HtmlDocument doc = Helper.GetContentFromUrl(url);
+            HtmlAgilityPack.HtmlDocument doc = new HtmlDocument();
+            doc.LoadHtml(GetHtmlContentFromUrl(url, page, true).Result);
             var elemt = doc.DocumentNode.QuerySelector("#applyButtonLinkContainer a");
 
             var returnVal = elemt?.GetAttributeValue("href", null) ?? "";
             if (string.IsNullOrEmpty(returnVal) && tryiNdex < 3)
             {
-                returnVal = GetApplyLink(url, ++tryiNdex);
+                returnVal = GetApplyLink(url, ++tryiNdex, page, useBrowserBot);
             }
             return returnVal;
         }
+
+        private static HtmlDocument GetContentFromUrl(string url, int ttry = 1)
+        {
+            var str = "";
+
+            try
+            {
+
+                using (WebClient wc = new WebClient())
+                {
+                    wc.Headers.Add("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.83 Safari/537.36");
+                    str = wc.DownloadString(url);
+                }
+                //var web = new HtmlWeb
+                //{
+                //    UserAgent =
+                //        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.83 Safari/537.36"
+                //};
+                //var doc = web.Load(url);
+
+
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                Thread.Sleep(5000);
+                if (ttry < 3)
+                {
+                    return GetContentFromUrl(url, ++ttry);
+                }
+            }
+            HtmlDocument d = new HtmlDocument();
+            d.LoadHtml(str);
+            return d;
+        }
+
     }
 }
