@@ -94,7 +94,7 @@ namespace AmazonJobComarisionCheck
 
             return dataSet;
         }
-        private void workd()
+        private void workd(bool ischked)
         {
             var currentBatch = jobs.Where(x => x.isProcessed == workStatus.pending && string.IsNullOrEmpty(x.JobDetailUrl)).FirstOrDefault();
             var page = BrowserAutoBot.setupBrowser().Result;
@@ -102,7 +102,7 @@ namespace AmazonJobComarisionCheck
             {
                 Invoke((Action)(() => { label2.Text = $@"Processing {jobs.IndexOf(currentBatch) + 1} out of {jobs.Count - 1}"; }));
                 currentBatch.isProcessed = workStatus.started;
-                Search(currentBatch, 1, page).Wait();
+                Search(currentBatch, 1, page, ischked).Wait();
                 currentBatch.isProcessed = workStatus.completed;
                 currentBatch = jobs.Where(x => x.isProcessed == workStatus.pending && string.IsNullOrEmpty(x.JobDetailUrl)).FirstOrDefault();
             }
@@ -114,10 +114,10 @@ namespace AmazonJobComarisionCheck
             //var pageList = new List<Page>();
             for (int i = 0; i < instCount; i++)
             {
-
+                var isck = chkbxLoadIndeedInBrowser.Checked;
                 var ts = Task.Run(async () =>
                           {
-                              workd();
+                              workd(isck);
                           });
                 tss.Add(ts);
 
@@ -222,7 +222,7 @@ namespace AmazonJobComarisionCheck
                 var company = item.QuerySelector(".company")?.InnerText.Replace("\n", "");
                 if (company.ToLower().Contains("amazon"))
                 {
-                    var jobDetailUrl = BrowserAutoBot.GetApplyLink($"{IndeedBaseUrl}/viewjob?jk=" + id, 1,_page).HandleEmptyUrl();
+                    var jobDetailUrl = BrowserAutoBot.GetApplyLink($"{IndeedBaseUrl}/viewjob?jk=" + id, 1, _page).HandleEmptyUrl();
                     var jobid = await GetAmazonId(jobDetailUrl, _page).ConfigureAwait(false);
                     if (!string.IsNullOrEmpty(jobid))
                     {
