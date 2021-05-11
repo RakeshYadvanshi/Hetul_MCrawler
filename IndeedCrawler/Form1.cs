@@ -24,7 +24,7 @@ namespace IndeedCrawler
         }
 
 
-        string IndeedBaseUrl = "https://www.indeed.com";
+        string IndeedBaseUrl = "https://ca.indeed.com";
         static string sFileName;
         static int iRow, iCol = 2;
         static List<xlData> jobs = new List<xlData>();
@@ -159,6 +159,7 @@ namespace IndeedCrawler
                 if (string.IsNullOrEmpty(xlDataObj.xlKeyword) && string.IsNullOrEmpty(xlDataObj.xlJobLocation))
                     return;
                 Search(xlDataObj);
+                Thread.Sleep(3000);
             }
         }
 
@@ -249,7 +250,7 @@ namespace IndeedCrawler
                                 xlDataObj.JobLocation = joblocationArray[0] + ", " + joblocationArray[1].Trim().Split(' ')[0];
                             }
                             isLastSaved = true;
-                            xlDataObj.JobDetailUrl = BrowserAutoBot.GetApplyLink($"{IndeedBaseUrl}/viewjob?jk=" + id,1,_page).HandleEmptyUrl();
+                            xlDataObj.JobDetailUrl = BrowserAutoBot.GetApplyLink($"{IndeedBaseUrl}/viewjob?jk=" + id,1,_page,true).HandleEmptyUrl();
                             xlDataObj = updateAmazonId(xlDataObj).Result;
                             jobs.Add(xlDataObj);
                             xlDataObj = JsonConvert.DeserializeObject<xlData>(JsonConvert.SerializeObject(xlDataObj));
@@ -270,7 +271,7 @@ namespace IndeedCrawler
                                 }
 
                                 xlDataObj.xlJobIndex = index + 1;
-                                xlDataObj.JobDetailUrl = BrowserAutoBot.GetApplyLink($"{IndeedBaseUrl}/viewjob?jk=" + id,1,_page).HandleEmptyUrl();
+                                xlDataObj.JobDetailUrl = BrowserAutoBot.GetApplyLink($"{IndeedBaseUrl}/viewjob?jk=" + id,1,_page,true).HandleEmptyUrl();
                                 xlDataObj = updateAmazonId(xlDataObj).Result;
                                 jobs.Add(xlDataObj);
                                 xlDataObj = JsonConvert.DeserializeObject<xlData>(JsonConvert.SerializeObject(xlDataObj));
@@ -289,7 +290,7 @@ namespace IndeedCrawler
                             var joblocationArray = xlDataObj.JobLocation.Split(',');
                             xlDataObj.JobLocation = joblocationArray[0] + ", " + joblocationArray[1].Trim().Split(' ')[0];
                         }
-                        xlDataObj.JobDetailUrl = BrowserAutoBot.GetApplyLink($"{IndeedBaseUrl}/viewjob?jk=" + id,1,_page).HandleEmptyUrl();
+                        xlDataObj.JobDetailUrl = BrowserAutoBot.GetApplyLink($"{IndeedBaseUrl}/viewjob?jk=" + id,1,_page,true).HandleEmptyUrl();
                         xlDataObj = updateAmazonId(xlDataObj).Result;
                         jobs.Add(xlDataObj);
                         xlDataObj = JsonConvert.DeserializeObject<xlData>(JsonConvert.SerializeObject(xlDataObj));

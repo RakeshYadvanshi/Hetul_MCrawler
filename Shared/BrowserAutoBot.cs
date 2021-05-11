@@ -46,9 +46,10 @@ namespace Shared
             return page.Url;
         }
 
-        public static async Task<string> GetHtmlContentFromUrl(string amazonUrl, Page page, bool loadUsingBrowserBot = false)
+        public static async Task<string> GetHtmlContentFromUrl(string amazonUrl, Page page, bool loadUsingBrowserBot = false, int tryCount = 1)
         {
             var amazonContent = "";
+            var isExpe = false;
             try
             {
                 if (!loadUsingBrowserBot)
@@ -57,22 +58,26 @@ namespace Shared
                 }
                 else
                 {
-
                     await page.GoToAsync(amazonUrl, new NavigationOptions()
                     {
                         Timeout = 0,
                         WaitUntil = new WaitUntilNavigation[]
                         {
-                            WaitUntilNavigation.DOMContentLoaded
+
                         }
-                    }).ConfigureAwait(false);
+                    });
 
                 }
                 amazonContent = await GetPageContent(page);
             }
             catch (Exception e)
             {
-                return await GetHtmlContentFromUrl(amazonUrl, page, loadUsingBrowserBot);
+                isExpe = true;
+            }
+            if (loadUsingBrowserBot && isExpe)
+            {
+                Thread.Sleep(5000);
+                return await GetPageContent(page);
             }
 
             return amazonContent;
@@ -85,10 +90,30 @@ namespace Shared
             var elemt = doc.DocumentNode.QuerySelector("#applyButtonLinkContainer a");
 
             var returnVal = elemt?.GetAttributeValue("href", null) ?? "";
-            if (string.IsNullOrEmpty(returnVal) && tryiNdex < 3)
+            if (useBrowserBot)
             {
-                returnVal = GetApplyLink(url, ++tryiNdex, page, useBrowserBot);
+                while (string.IsNullOrEmpty(returnVal) && tryiNdex < 3)
+                {
+                    Thread.Sleep(3000);
+                    var str = GetPageContent(page).Result;
+                    doc.LoadHtml(str);
+                    elemt = doc.DocumentNode.QuerySelector("#applyButtonLinkContainer a");
+                    if (string.IsNullOrEmpty(returnVal))
+                    {
+                        tryiNdex++;
+                        continue;
+                    }
+                    returnVal = elemt?.GetAttributeValue("href", null) ?? "";
+                }
             }
+            else
+            {
+                if (string.IsNullOrEmpty(returnVal) && tryiNdex < 3)
+                {
+                    returnVal = GetApplyLink(url, ++tryiNdex, page, useBrowserBot);
+                }
+            }
+
             return returnVal;
         }
 

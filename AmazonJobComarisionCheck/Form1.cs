@@ -47,15 +47,36 @@ namespace AmazonJobComarisionCheck
 
                     jobs = new List<xlData>();
                     PrepareRows(dataSet);
-                    Task.Run(() =>
-                    {
-                        ProcessRows();
-                        ExportToExcel(jobs);
-                        MessageBox.Show("Jobs done");
-                        //label2.Text = "";
 
 
-                    });
+                    List<Task> tss = new List<Task>();
+                    var instCount = 2;
+                    //for (int i = 0; i < instCount; i++)
+                    //{
+                    //    Thread.Sleep(1000);
+                        var isck = chkbxLoadIndeedInBrowser.Checked;
+                        var ts = Task.Run(() =>
+                        {
+                            workd(isck).Wait();
+
+                        });
+                       // tss.Add(ts);
+
+
+                    //}
+
+                    //Task.WaitAll(tss.ToArray());
+                    //Task.WaitAll(tss.ToArray());
+
+                    //Task.Run(() =>
+                    //{
+                    //     ProcessRows();
+                    //    //workd(false).Wait();
+
+                    //    ExportToExcel(jobs);
+
+
+                    //});
 
                 }
 
@@ -94,37 +115,40 @@ namespace AmazonJobComarisionCheck
 
             return dataSet;
         }
-        private void workd(bool ischked)
+        private async Task workd(bool ischked)
         {
-            var currentBatch = jobs.Where(x => x.isProcessed == workStatus.pending && string.IsNullOrEmpty(x.JobDetailUrl)).FirstOrDefault();
+            var currentBatch = GetCurrentBatchJob();
             var page = BrowserAutoBot.setupBrowser().Result;
             while (currentBatch != null)
             {
-                Invoke((Action)(() => { label2.Text = $@"Processing {jobs.IndexOf(currentBatch) + 1} out of {jobs.Count - 1}"; }));
-                currentBatch.isProcessed = workStatus.started;
-                Search(currentBatch, 1, page, ischked).Wait();
+                var batch = currentBatch;
+                Invoke((Action)(() => { label2.Text = $@"Processing {jobs.IndexOf(batch) + 1} out of {jobs.Count - 1}"; }));
+                await Search(currentBatch, page, ischked).ConfigureAwait(false);
                 currentBatch.isProcessed = workStatus.completed;
-                currentBatch = jobs.Where(x => x.isProcessed == workStatus.pending && string.IsNullOrEmpty(x.JobDetailUrl)).FirstOrDefault();
+                currentBatch = GetCurrentBatchJob();
             }
+            Invoke((Action)(() =>
+            {
+                //MessageBox.Show("Jobs done");
+                label2.Text = "Job Done!! Export manully";
+            }));
         }
+
+        private static xlData GetCurrentBatchJob()
+        {
+            xlData currentBatch;
+
+            currentBatch =
+                jobs.FirstOrDefault(x => x.isProcessed == workStatus.pending && string.IsNullOrEmpty(x.JobDetailUrl));
+
+            if (currentBatch != null) currentBatch.isProcessed = workStatus.started;
+
+            return currentBatch;
+        }
+
         void ProcessRows()
         {
-            List<Task> tss = new List<Task>();
-            var instCount = 1;
-            //var pageList = new List<Page>();
-            for (int i = 0; i < instCount; i++)
-            {
-                var isck = chkbxLoadIndeedInBrowser.Checked;
-                var ts = Task.Run(async () =>
-                          {
-                              workd(isck);
-                          });
-                tss.Add(ts);
 
-                //pageList.Add(page);
-            }
-
-            Task.WaitAll(tss.ToArray());
 
             //while (jobs.Any(x => !x.isProcessed))
             //{
@@ -172,84 +196,84 @@ namespace AmazonJobComarisionCheck
                 xlDataObj.xlJobLocation = xlDataObj.xlJobLocation.ToLower().Replace("empty", "");
 
                 if (string.IsNullOrEmpty(xlDataObj.xlKeyword) && string.IsNullOrEmpty(xlDataObj.xlJobLocation))
-                    return;
+                    continue;
                 jobs.Add(xlDataObj);
             }
         }
-        private async Task Search(xlData xlDataObj, int indx, Page _page, bool useBrowserasBOt)
+        private async Task Search(xlData xlDataObj, Page _page, bool useBrowserasBOt)
         {
-            List<string> jobIds = new List<string>();
+            try
+            {
 
-            string jobUrl = $"{IndeedBaseUrl}/jobs";
+                List<string> jobIds = new List<string>();
 
-            if (!string.IsNullOrEmpty(xlDataObj.xlKeyword) && !string.IsNullOrEmpty(xlDataObj.xlJobLocation))
-            {
-                jobUrl = jobUrl + "?q=" + xlDataObj.xlKeyword + "&l=" + xlDataObj.xlJobLocation;
-            }
-            else if (!string.IsNullOrEmpty(xlDataObj.xlKeyword))
-            {
-                jobUrl = jobUrl + "?q=" + xlDataObj.xlKeyword;
-            }
-            else if (!string.IsNullOrEmpty(xlDataObj.xlJobLocation))
-            {
-                jobUrl = jobUrl + "?l=" + xlDataObj.xlJobLocation;
-            }
-            HtmlAgilityPack.HtmlDocument doc = new HtmlAgilityPack.HtmlDocument();
-            doc.LoadHtml(await BrowserAutoBot.GetHtmlContentFromUrl(jobUrl, _page, useBrowserasBOt).ConfigureAwait(false));//GetContentFromUrl(jobUrl);
-            var jobList = doc.QuerySelectorAll(".jobsearch-SerpJobCard.unifiedRow.row");
+                string jobUrl = $"{IndeedBaseUrl}/jobs";
 
-            foreach (var item in jobList)
-            {
-                var id = item.Id.Split('_')[item.Id.Split('_').Length - 1];
-                jobIds.Add(id);
-            }
-
-            await jobDetails(jobIds).ConfigureAwait(false);
-            for (var index = 0; index < jobList.Count; index++)
-            {
-                var item = jobList[index];
-                var id = item.Id.Split('_')[item.Id.Split('_').Length - 1];
-                var jobTitle = "";
-                try
+                if (!string.IsNullOrEmpty(xlDataObj.xlKeyword) && !string.IsNullOrEmpty(xlDataObj.xlJobLocation))
                 {
-                    jobTitle = item.QuerySelector("h2 a").Attributes.FirstOrDefault(x => x.Name.ToLower() == "title")?.Value;
+                    jobUrl = jobUrl + "?q=" + xlDataObj.xlKeyword + "&l=" + xlDataObj.xlJobLocation;
                 }
-                catch (Exception)
+                else if (!string.IsNullOrEmpty(xlDataObj.xlKeyword))
                 {
-                    // ignored
+                    jobUrl = jobUrl + "?q=" + xlDataObj.xlKeyword;
+                }
+                else if (!string.IsNullOrEmpty(xlDataObj.xlJobLocation))
+                {
+                    jobUrl = jobUrl + "?l=" + xlDataObj.xlJobLocation;
+                }
+                HtmlAgilityPack.HtmlDocument doc = new HtmlAgilityPack.HtmlDocument();
+                doc.LoadHtml(await BrowserAutoBot.GetHtmlContentFromUrl(jobUrl, _page, useBrowserasBOt).ConfigureAwait(false));//GetContentFromUrl(jobUrl);
+                var jobList = doc.QuerySelectorAll(".jobsearch-SerpJobCard.unifiedRow.row");
+
+                foreach (var item in jobList)
+                {
+                    var id = item.Id.Split('_')[item.Id.Split('_').Length - 1];
+                    jobIds.Add(id);
                 }
 
-                var company = item.QuerySelector(".company")?.InnerText.Replace("\n", "");
-                if (company.ToLower().Contains("amazon"))
+                await jobDetails(jobIds).ConfigureAwait(false);
+                for (var index = 0; index < jobList.Count; index++)
                 {
-                    var jobDetailUrl = BrowserAutoBot.GetApplyLink($"{IndeedBaseUrl}/viewjob?jk=" + id, 1, _page, useBrowserasBOt).HandleEmptyUrl();
-                    var jobid = await GetAmazonId(jobDetailUrl, _page).ConfigureAwait(false);
-                    if (!string.IsNullOrEmpty(jobid))
+                    var item = jobList[index];
+                    var id = item.Id.Split('_')[item.Id.Split('_').Length - 1];
+                    var jobTitle = "";
+                    try
                     {
-                        foreach (var jb in jobs.Where(jb => jb.xlAmazonId == jobid))
+                        jobTitle = item.QuerySelector("h2 a").Attributes.FirstOrDefault(x => x.Name.ToLower() == "title")?.Value;
+                    }
+                    catch (Exception)
+                    {
+                        // ignored
+                    }
+
+                    var company = item.QuerySelector(".company")?.InnerText.Replace("\n", "");
+                    if (company.ToLower().Contains("amazon"))
+                    {
+                        var jobDetailUrl = BrowserAutoBot.GetApplyLink($"{IndeedBaseUrl}/viewjob?jk=" + id, 1, _page, true).HandleEmptyUrl();
+                        var jobid = await GetAmazonId(jobDetailUrl, _page).ConfigureAwait(false);
+                        if (!string.IsNullOrEmpty(jobid))
                         {
-                            jb.JobDetailUrl = BrowserAutoBot.GetCurrentPageUrl(_page);
+                            foreach (var jb in jobs.Where(jb => jb.xlAmazonId == jobid))
+                            {
+                                jb.JobDetailUrl = BrowserAutoBot.GetCurrentPageUrl(_page);
+                            }
+                            break;
+                            if (jobid == xlDataObj.xlAmazonId)
+                            {
+                                break;
+                            }
                         }
 
-                        if (jobid == xlDataObj.xlAmazonId)
-                        {
-                            break;
-                        }
                     }
 
                 }
 
             }
+            catch (Exception ex)
+            {
+                Console.WriteLine("I am here");
 
-            //if (string.IsNullOrEmpty(xlDataObj.JobDetailUrl) && indx < 3)
-            //{
-            //    indx++;
-            //    Search(xlDataObj, indx);
-            //}
-            //else
-            //{
-            //jobs.Add(xlDataObj);
-            // }
+            }
         }
         private async Task<string> GetAmazonId(string JobDetailUrl, Page _page)
         {
@@ -257,7 +281,7 @@ namespace AmazonJobComarisionCheck
             {
                 if (JobDetailUrl != "Application Form")
                 {
-                    var amazonContent = await BrowserAutoBot.GetHtmlContentFromUrl(JobDetailUrl, _page).ConfigureAwait(false);
+                    var amazonContent = await BrowserAutoBot.GetHtmlContentFromUrl(JobDetailUrl, _page, true).ConfigureAwait(false);
                     var amazonId = Helper.GetAmazonJobId(amazonContent);
                     var tried = 0;
                     while (amazonId == "" && tried < 5)

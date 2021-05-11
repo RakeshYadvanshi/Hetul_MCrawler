@@ -11,6 +11,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AmazonJobComarisionCheck", 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Shared", "Shared\Shared.csproj", "{2FD518BC-6A5B-4B95-97ED-2B4A729EBFEF}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Indeed_All_Job_Page_Crawler", "Indeed_All_Job_Page_Crawler\Indeed_All_Job_Page_Crawler.csproj", "{07A41E8F-66F2-4A75-8A7B-BC60EAB9B859}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -33,6 +35,10 @@ Global
 		{2FD518BC-6A5B-4B95-97ED-2B4A729EBFEF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2FD518BC-6A5B-4B95-97ED-2B4A729EBFEF}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2FD518BC-6A5B-4B95-97ED-2B4A729EBFEF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{07A41E8F-66F2-4A75-8A7B-BC60EAB9B859}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{07A41E8F-66F2-4A75-8A7B-BC60EAB9B859}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{07A41E8F-66F2-4A75-8A7B-BC60EAB9B859}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{07A41E8F-66F2-4A75-8A7B-BC60EAB9B859}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
