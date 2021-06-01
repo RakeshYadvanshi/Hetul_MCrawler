@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using HtmlAgilityPack;
@@ -41,6 +42,12 @@ namespace Shared
         {
             return await page.GetContentAsync().ConfigureAwait(false);
         }
+
+        public static async Task<string> GetAmazonJobDetailIdPageContent(Page page)
+        {
+            await page.WaitForSelectorAsync(".first");
+            return await page.GetContentAsync().ConfigureAwait(false);
+        }
         public static string GetCurrentPageUrl(Page page)
         {
             return page.Url;
@@ -58,15 +65,7 @@ namespace Shared
                 }
                 else
                 {
-                    await page.GoToAsync(amazonUrl, new NavigationOptions()
-                    {
-                        Timeout = 0,
-                        WaitUntil = new WaitUntilNavigation[]
-                        {
-
-                        }
-                    });
-
+                    await page.GoToAsync(amazonUrl);
                 }
                 amazonContent = await GetPageContent(page);
             }
@@ -123,12 +122,6 @@ namespace Shared
 
             try
             {
-
-                //using (WebClient wc = new WebClient())
-                //{
-                //    wc.Headers.Add("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.83 Safari/537.36");
-                //    str = wc.DownloadString(url);
-                //}
                 var web = new HtmlWeb
                 {
                     UserAgent =
@@ -152,5 +145,10 @@ namespace Shared
             return d;
         }
 
+        public static async Task<string> GetStringContentFromUrl(string url)
+        {
+            HttpClient client = new HttpClient();
+            return await client.GetStringAsync(url);
+        }
     }
 }

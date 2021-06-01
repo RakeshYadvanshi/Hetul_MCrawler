@@ -50,33 +50,16 @@ namespace AmazonJobComarisionCheck
 
 
                     List<Task> tss = new List<Task>();
-                    var instCount = 2;
-                    //for (int i = 0; i < instCount; i++)
-                    //{
-                    //    Thread.Sleep(1000);
-                        var isck = chkbxLoadIndeedInBrowser.Checked;
-                        var ts = Task.Run(() =>
-                        {
-                            workd(isck).Wait();
 
-                        });
-                       // tss.Add(ts);
+                    var sick = chkbxLoadIndeedInBrowser.Checked;
+                    var ts = Task.Run(() =>
+                    {
+                        workd(sick).Wait();
+
+                    });
 
 
-                    //}
 
-                    //Task.WaitAll(tss.ToArray());
-                    //Task.WaitAll(tss.ToArray());
-
-                    //Task.Run(() =>
-                    //{
-                    //     ProcessRows();
-                    //    //workd(false).Wait();
-
-                    //    ExportToExcel(jobs);
-
-
-                    //});
 
                 }
 
@@ -95,21 +78,7 @@ namespace AmazonJobComarisionCheck
             {
                 using (var reader = ExcelReaderFactory.CreateReader(stream))
                 {
-                    // Choose one of either 1 or 2:
-
-                    // 1. Use the reader methods
-                    do
-                    {
-                        while (reader.Read())
-                        {
-                            // reader.GetDouble(0);
-                        }
-                    } while (reader.NextResult());
-
-                    // 2. Use the AsDataSet extension method
                     dataSet = reader.AsDataSet();
-
-                    // The result of each spreadsheet is in result.Tables
                 }
             }
 
@@ -130,7 +99,7 @@ namespace AmazonJobComarisionCheck
             Invoke((Action)(() =>
             {
                 //MessageBox.Show("Jobs done");
-                label2.Text = "Job Done!! Export manully";
+                label2.Text = @"Job Done!! Export manually";
             }));
         }
 
@@ -239,7 +208,7 @@ namespace AmazonJobComarisionCheck
                     var jobTitle = "";
                     try
                     {
-                        jobTitle = item.QuerySelector("h2 a").Attributes.FirstOrDefault(x => x.Name.ToLower() == "title")?.Value;
+                        jobTitle = item.QuerySelector(".jobtitle").Attributes.FirstOrDefault(x => x.Name.ToLower() == "title")?.Value;
                     }
                     catch (Exception)
                     {
@@ -256,6 +225,7 @@ namespace AmazonJobComarisionCheck
                             foreach (var jb in jobs.Where(jb => jb.xlAmazonId == jobid))
                             {
                                 jb.JobDetailUrl = BrowserAutoBot.GetCurrentPageUrl(_page);
+                                jb.CompanyName = company;
                             }
                             break;
                             if (jobid == xlDataObj.xlAmazonId)
@@ -271,7 +241,7 @@ namespace AmazonJobComarisionCheck
             }
             catch (Exception ex)
             {
-                Console.WriteLine("I am here");
+                Console.WriteLine(ex.Message);
 
             }
         }
@@ -327,6 +297,7 @@ namespace AmazonJobComarisionCheck
             table.Columns.Add("Site", typeof(string));
             table.Columns.Add("Search term", typeof(string));
             table.Columns.Add("Search Location", typeof(string));
+            table.Columns.Add("Company Name", typeof(string));
             table.Columns.Add("JobID", typeof(string));
             table.Columns.Add("Job URL", typeof(string));
 
@@ -336,6 +307,7 @@ namespace AmazonJobComarisionCheck
                     item.xlSite,
                     item.xlKeyword,
                     item.xlJobLocation,
+                    string.IsNullOrEmpty(item.CompanyName) ? "No Job Found" : item.CompanyName,
                     item.xlAmazonId,
                     item.JobDetailUrl ?? ""
                 );
@@ -359,6 +331,7 @@ namespace AmazonJobComarisionCheck
         public string xlKeyword { get; set; }
         public string JobDetailUrl { get; set; }
         public workStatus isProcessed { get; set; } = workStatus.pending;
+        public string CompanyName { get; set; }
     }
     public enum workStatus
     {
