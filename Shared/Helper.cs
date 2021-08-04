@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Globalization;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading;
 
 namespace Shared
@@ -14,8 +16,11 @@ namespace Shared
             var textContent = document.DocumentNode.QuerySelector(".first")?.InnerHtml;
             if (textContent != null)
             {
-                textContent = textContent.Replace("Job ID:", "").Trim().Split('|')[0].Trim();
-                return textContent;
+
+
+                Regex re = new Regex(@"\d+");
+                Match m = re.Match(textContent);
+                return m.Value;
             }
             return "";
         }
@@ -24,7 +29,7 @@ namespace Shared
 
         public static string HandleStringDateFromIndeed(this string str)
         {
-             var jobWage=str.ToLower().Replace("days ago", "").Replace("day ago", "").Replace("just posted", "0").Replace("today", "0");
+            var jobWage = str.ToLower().Replace("days ago", "").Replace("day ago", "").Replace("just posted", "0").Replace("today", "0");
 
             while (jobWage.IndexOf('+') > -1)
             {
@@ -44,10 +49,10 @@ namespace Shared
                 }
             }
 
-            return jobWage.ToLower().Replace("from","").Replace("an","").Replace("hour","")
+            return jobWage.ToLower().Replace("from", "").Replace("an", "").Replace("hour", "")
                 //.Replace("up to", "")
                 //.Replace("a year", "")
-                .Replace("++", "").Replace("up to","")
+                .Replace("++", "").Replace("up to", "")
                 .Replace("a week", "")
                 .Trim();
         }
@@ -66,6 +71,16 @@ namespace Shared
         public static string HtmlDecode(this string str)
         {
             return System.Net.WebUtility.HtmlDecode(str);
+        }
+
+        public static string ToCamelCase(this string str)
+        {
+            return new CultureInfo("en-US", false).TextInfo.ToTitleCase(str);
+        }
+
+        public static string RegexReplaceCaseInsenstive(this string input,string pattern, string replacement)
+        {
+            return Regex.Replace(input, pattern, replacement, RegexOptions.IgnoreCase);
         }
     }
 }

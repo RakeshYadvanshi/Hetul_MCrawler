@@ -14,7 +14,9 @@ namespace Amazon_Job_ZipRecruiter_Comparision_Check
 {
     public partial class Form1 : Form
     {
-        string _zipRecruiterUrl = "https://www.ziprecruiter.in/";
+
+
+        string _zipRecruiterUrl = "https://www.ziprecruiter.com";
         static string sFileName;
         static List<xlData> jobs = new List<xlData>();
         public Form1()
@@ -62,16 +64,15 @@ namespace Amazon_Job_ZipRecruiter_Comparision_Check
         }
         private async Task workd(bool ischked)
         {
-            var currentBatch = GetCurrentBatchJob();
             var page = BrowserAutoBot.setupBrowser().Result;
-            while (currentBatch != null)
+            foreach (var currentBatch in jobs.ToList().Skip(Convert.ToInt32(numericUpDown1.Value)).Take(Convert.ToInt32(numericUpDown2.Value) - Convert.ToInt32(numericUpDown1.Value)))
             {
                 var batch = currentBatch;
                 Invoke((Action)(() => { label2.Text = $@"Processing {jobs.IndexOf(batch) + 1} out of {jobs.Count - 1}"; }));
                 await Search(currentBatch, page, ischked).ConfigureAwait(false);
                 currentBatch.isProcessed = workStatus.completed;
-                currentBatch = GetCurrentBatchJob();
             }
+
             Invoke((Action)(() => label2.Text = @"Job Done!! Export manually"));
         }
 
@@ -79,36 +80,38 @@ namespace Amazon_Job_ZipRecruiter_Comparision_Check
         {
             try
             {
+
                 List<string> jobIds = new List<string>();
-                string jobUrl = $"{_zipRecruiterUrl}/jobs/search";
+                string jobUrl = $"{_zipRecruiterUrl}/candidate/search";
 
                 if (!string.IsNullOrEmpty(xlDataObj.xlKeyword) && !string.IsNullOrEmpty(xlDataObj.xlJobLocation))
                 {
-                    jobUrl = jobUrl + "?q=" + xlDataObj.xlKeyword + "&l=" + xlDataObj.xlJobLocation;
+                    jobUrl = jobUrl + "?search=" + xlDataObj.xlKeyword + "&location=" + xlDataObj.xlJobLocation;
                 }
                 else if (!string.IsNullOrEmpty(xlDataObj.xlKeyword))
                 {
-                    jobUrl = jobUrl + "?q=" + xlDataObj.xlKeyword;
+                    jobUrl = jobUrl + "?search=" + xlDataObj.xlKeyword;
                 }
                 else if (!string.IsNullOrEmpty(xlDataObj.xlJobLocation))
                 {
-                    jobUrl = jobUrl + "?l=" + xlDataObj.xlJobLocation;
+                    jobUrl = jobUrl + "?location=" + xlDataObj.xlJobLocation;
                 }
                 HtmlAgilityPack.HtmlDocument doc = new HtmlAgilityPack.HtmlDocument();
                 doc.LoadHtml(await BrowserAutoBot.GetHtmlContentFromUrl(jobUrl, _page, true).ConfigureAwait(false));
 
-                var jobList = doc.QuerySelectorAll(".jobList .job-listing");
+                var jobList = doc.QuerySelectorAll(".job_result.t_job_result");
 
                 for (var index = 0; index < jobList.Count; index++)
                 {
                     var item = jobList[index];
 
-                    var company = item.QuerySelector(".jobList-intro .jobList-introMeta li:first-child")?.InnerText.Replace("\n", "");
+                    var jobTitle = item.QuerySelector(".just_job_title")?.InnerText.Replace("\n", "");
+
+                    var company = item.QuerySelector(".t_org_link.name")?.InnerText.Replace("\n", "");
                     if (company.ToLower().Contains("amazon"))
                     {
-                        var jobDetailUrl = item.QuerySelector(".jobList-title.zip-backfill-link").Attributes["href"].Value;
-                        var applyLink = await GetApplyLink(jobDetailUrl, _page);
-                        var jobid = await GetAmazonId(applyLink, _page).ConfigureAwait(false);
+                        var jobDetailUrl = item.QuerySelector(".job_link.t_job_link").Attributes["href"].Value;
+                        var jobid = await GetAmazonId(jobDetailUrl, _page).ConfigureAwait(false);
                         if (!string.IsNullOrEmpty(jobid))
                         {
                             foreach (var jb in jobs.Where(jb => jb.xlAmazonId == jobid))
@@ -147,39 +150,6 @@ namespace Amazon_Job_ZipRecruiter_Comparision_Check
                         amazonId = Helper.GetAmazonJobId(await BrowserAutoBot.GetPageContent(_page));
                     }
                     return amazonId;
-                }
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e);
-            }
-            return "";
-        }
-
-        private async Task<string> GetApplyLink(string jobDetailUrl, Page _page)
-        {
-            try
-            {
-                var tried = 0;
-                if (jobDetailUrl != "Application Form")
-                {
-                    var amazonContent = await BrowserAutoBot.GetHtmlContentFromUrl(jobDetailUrl, _page, true).ConfigureAwait(false);
-
-                    var document = new HtmlAgilityPack.HtmlDocument();
-                    document.LoadHtml(amazonContent);
-                    var applyLink = document.DocumentNode.QuerySelector("#apply_button_job-details-bottom").Attributes["href"]?.Value;
-
-
-                    while (string.IsNullOrEmpty(applyLink) && tried < 5)
-                    {
-                        Thread.Sleep(5000);
-                        tried++;
-
-                        document = new HtmlAgilityPack.HtmlDocument();
-                        document.LoadHtml(await BrowserAutoBot.GetPageContent(_page));
-                        applyLink = document.DocumentNode.QuerySelector("#apply_button_job-details-bottom").Attributes["href"]?.Value;
-                    }
-                    return applyLink;
                 }
             }
             catch (Exception e)

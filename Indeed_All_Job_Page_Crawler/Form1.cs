@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -76,14 +77,13 @@ namespace Indeed_All_Job_Page_Crawler
 
                 xlDataObj.xlDate = datatable.Rows[iRow][0].ToString();
                 xlDataObj.xlSite = datatable.Rows[iRow][1].ToString();
-                xlDataObj.xlKeyword = datatable.Rows[iRow][2].ToString().ToLower().Replace("empty", "");
+                xlDataObj.xlKeyword = datatable.Rows[iRow][2].ToString().RegexReplaceCaseInsenstive("empty", "");
                 xlDataObj.xlJobLocation = datatable.Rows[iRow][3].ToString();
                 xlDataObj.xlAmazonId = datatable.Rows[iRow][4].ToString();
                 xlDataObj.JobDetailUrl = datatable.Rows[iRow][5].ToString();
-                if (xlDataObj.xlJobLocation.ToLower().Contains("empty"))
-                {
-                    xlDataObj.xlJobLocation = xlDataObj.xlJobLocation.ToLower().Replace("empty", "");
-                }
+
+                xlDataObj.xlJobLocation = xlDataObj.xlJobLocation.RegexReplaceCaseInsenstive("empty", "");
+
                 if (string.IsNullOrEmpty(xlDataObj.xlKeyword) && string.IsNullOrEmpty(xlDataObj.xlJobLocation))
                     continue;
                 jobs.Add(xlDataObj);
@@ -92,7 +92,6 @@ namespace Indeed_All_Job_Page_Crawler
 
         private void button1_Click(object sender, EventArgs e)
         {
-
             openFileDialog1.Title = "Excel File to Edit";
             openFileDialog1.FileName = "";
             openFileDialog1.Filter = "Excel File|*.xlsx;*.xls";
@@ -116,8 +115,6 @@ namespace Indeed_All_Job_Page_Crawler
             var detailPage = setupBrowser().Result;
             foreach (var xlDataObj in jobs)
             {
-                List<string> jobIds = new List<string>();
-
                 string jobUrl = $"{_indeedBaseUrl}/jobs";
                 if (!string.IsNullOrEmpty(xlDataObj.xlKeyword) && !string.IsNullOrEmpty(xlDataObj.xlJobLocation))
                 {
@@ -163,7 +160,7 @@ namespace Indeed_All_Job_Page_Crawler
                     {
                         if (isMosiac)
                         {
-                            jobTitle = item.QuerySelectorAll(".jobTitle>span").First(x=>x.Name=="span").Attributes.FirstOrDefault(x => x.Name.ToLower() == "title")?.Value.HtmlDecode();
+                            jobTitle = item.QuerySelectorAll(".jobTitle>span").First(x => x.Name == "span").Attributes.FirstOrDefault(x => x.Name.ToLower() == "title")?.Value.HtmlDecode();
                         }
                         else
                         {
@@ -178,7 +175,7 @@ namespace Indeed_All_Job_Page_Crawler
                     if (isMosiac)
                     {
                         Invoke((Action)(() => { label2.Text = $@"getting company content : index {index}"; }));
-                        company = item.QuerySelector(".turnstileLink.companyOverviewLink")?.InnerText.Replace("\n", "").HtmlDecode();
+                        company = item.QuerySelector(".companyName")?.InnerText.Replace("\n", "").HtmlDecode();
                         Invoke((Action)(() => { label2.Text = $@"getting detail url : index {index}"; }));
                         jobDetailUrl = BrowserAutoBot.GetApplyLink($"{_indeedBaseUrl}/viewjob?jk=" + id, 3, detailPage, false)
                             .HandleEmptyUrl();

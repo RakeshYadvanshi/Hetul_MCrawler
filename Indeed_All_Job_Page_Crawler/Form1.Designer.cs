@@ -65,7 +65,7 @@ namespace Indeed_All_Job_Page_Crawler
             // label1
             // 
             this.label1.AutoSize = true;
-            this.label1.Location = new System.Drawing.Point(183, 84);
+            this.label1.Location = new System.Drawing.Point(218, 107);
             this.label1.Name = "label1";
             this.label1.Size = new System.Drawing.Size(0, 13);
             this.label1.TabIndex = 12;
@@ -73,7 +73,7 @@ namespace Indeed_All_Job_Page_Crawler
             // label2
             // 
             this.label2.AutoSize = true;
-            this.label2.Location = new System.Drawing.Point(163, 174);
+            this.label2.Location = new System.Drawing.Point(218, 133);
             this.label2.Name = "label2";
             this.label2.Size = new System.Drawing.Size(0, 13);
             this.label2.TabIndex = 13;
@@ -82,7 +82,7 @@ namespace Indeed_All_Job_Page_Crawler
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(506, 219);
+            this.ClientSize = new System.Drawing.Size(506, 175);
             this.Controls.Add(this.label2);
             this.Controls.Add(this.label1);
             this.Controls.Add(this.button2);

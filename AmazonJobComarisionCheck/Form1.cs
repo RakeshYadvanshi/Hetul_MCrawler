@@ -86,16 +86,15 @@ namespace AmazonJobComarisionCheck
         }
         private async Task workd(bool ischked)
         {
-            var currentBatch = GetCurrentBatchJob();
             var page = BrowserAutoBot.setupBrowser().Result;
-            while (currentBatch != null)
+            foreach (var currentBatch in jobs.ToList().Skip(Convert.ToInt32(numericUpDown1.Value)).Take(Convert.ToInt32(numericUpDown2.Value) - Convert.ToInt32(numericUpDown1.Value)))
             {
                 var batch = currentBatch;
                 Invoke((Action)(() => { label2.Text = $@"Processing {jobs.IndexOf(batch) + 1} out of {jobs.Count - 1}"; }));
                 await Search(currentBatch, page, ischked).ConfigureAwait(false);
                 currentBatch.isProcessed = workStatus.completed;
-                currentBatch = GetCurrentBatchJob();
             }
+
             Invoke((Action)(() =>
             {
                 //MessageBox.Show("Jobs done");
@@ -192,7 +191,7 @@ namespace AmazonJobComarisionCheck
                 }
                 HtmlAgilityPack.HtmlDocument doc = new HtmlAgilityPack.HtmlDocument();
                 doc.LoadHtml(await BrowserAutoBot.GetHtmlContentFromUrl(jobUrl, _page, useBrowserasBOt).ConfigureAwait(false));//GetContentFromUrl(jobUrl);
-                var jobList = doc.QuerySelectorAll(".jobsearch-SerpJobCard.unifiedRow.row");
+                var jobList = doc.QuerySelectorAll(".result");
 
                 foreach (var item in jobList)
                 {
@@ -208,14 +207,14 @@ namespace AmazonJobComarisionCheck
                     var jobTitle = "";
                     try
                     {
-                        jobTitle = item.QuerySelector(".jobtitle").Attributes.FirstOrDefault(x => x.Name.ToLower() == "title")?.Value;
+                        jobTitle = item.QuerySelector(".jobtitle").InnerText;
                     }
                     catch (Exception)
                     {
                         // ignored
                     }
 
-                    var company = item.QuerySelector(".company")?.InnerText.Replace("\n", "");
+                    var company = item.QuerySelector(".companyOverviewLink")?.InnerText.Replace("\n", "");
                     if (company.ToLower().Contains("amazon"))
                     {
                         var jobDetailUrl = BrowserAutoBot.GetApplyLink($"{IndeedBaseUrl}/viewjob?jk=" + id, 1, _page, true).HandleEmptyUrl();
