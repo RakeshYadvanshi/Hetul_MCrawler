@@ -3,56 +3,67 @@ using Newtonsoft.Json;
 using Shared;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Data;
+using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace SnagAJob_Crawl_All
+namespace Jab2Careers_All_Job_Crawl
 {
 
 
     public partial class Form1 : Form
     {
 
+        #region classes
 
-        #region SnapAJobClass
 
-        public class SnagajobClass
+        public class JobTwoCrawler
         {
+            public int total { get; set; }
+            public int start { get; set; }
+            public int count { get; set; }
+            public Dictionary<string, JobDetail> jobAds { get; set; }
+        }
 
-            public List[] list { get; set; }
-
+        public class SalaryDetail
+        {
+            public Dictionary<string, string> value { get; set; }
+            public string unit { get; set; }
+            public string label { get; set; }
         }
 
 
-        public class List
-        {
 
-            public string postingId { get; set; }
-            public string companyName { get; set; }
+        public class JobDetail
+        {
+            public string id { get; set; }
             public string title { get; set; }
-
-            public DateTime createdDate { get; set; }
-
-            public AddressLocation location { get; set; }
-
-        }
-
-        public class AddressLocation
-        {
-
+            public DateTime datePosted { get; set; }
+            public object onClickSnippet { get; set; }
+            public string link { get; set; }
+            public string companyName { get; set; }
             public string city { get; set; }
-
-            public string stateProvinceCode { get; set; }
-
+            public string state { get; set; }
+            public string cityState { get; set; }
+            public string price { get; set; }
+            public int preview { get; set; }
+            public string description { get; set; }
+            public string imageUrl { get; set; }
+            public Dictionary<string, SalaryDetail> salaryDetails { get; set; }
+            public string primaryMajorCategory { get; set; }
+            public string primaryMinorCategory { get; set; }
+            public string secondaryMajorCategory { get; set; }
+            public string secondaryMinorCategory { get; set; }
+            public string adType { get; set; }
+            public bool recommended { get; set; }
         }
 
-
-
-        #endregion
         public class xlData
         {
             public string xlDate { get; set; }
@@ -68,12 +79,15 @@ namespace SnagAJob_Crawl_All
             public string Wage { get; set; }
             public string Age { get; set; }
             public string JobId { get; set; }
-            public string AmazonLink { get; set; }
         }
-        private readonly string _snagAJobUrl = "https://www.snagajob.com";
+
+        #endregion
+        private readonly string _jobs2careersUrl = "https://j2cweb-backend-prod.jobs2careers.com";
         static string sFileName;
         static List<xlData> jobs = new List<xlData>();
         static List<xlData> OuputJobs = new List<xlData>();
+
+
         public Form1()
         {
             InitializeComponent();
@@ -93,8 +107,7 @@ namespace SnagAJob_Crawl_All
         }
 
 
-
-        void Work()
+        private void Work()
         {
             DataSet dataSet = readExcel(sFileName);
             PrepareRows(dataSet);
@@ -102,37 +115,36 @@ namespace SnagAJob_Crawl_All
             foreach (var xlDataObj in jobs)
             {
                 List<string> jobIds = new List<string>();
-                string jobUrl = $"{_snagAJobUrl}/api/jobs/v1/p4p?radiusInMiles=5&num=15";
-                if (!string.IsNullOrEmpty(xlDataObj.xlKeyword) && !string.IsNullOrEmpty(xlDataObj.xlJobLocation))
+                string jobUrl = $"{_jobs2careersUrl}/api/v1/jobAds/result?sort=r&start=0&categoryId=&jobType=1,2,4&exactMatch=0&distance=15";
+                var keywrd = xlDataObj.xlKeyword.ToLower().Replace("empty", "");
+                if (!string.IsNullOrEmpty(keywrd) && !string.IsNullOrEmpty(xlDataObj.xlJobLocation))
                 {
-                    jobUrl = jobUrl + "&query=" + xlDataObj.xlKeyword + "&location=" + xlDataObj.xlJobLocation;
+                    jobUrl = jobUrl + "&q=" + keywrd + "&l=" + xlDataObj.xlJobLocation;
                 }
-                else if (!string.IsNullOrEmpty(xlDataObj.xlKeyword))
+                else if (!string.IsNullOrEmpty(keywrd))
                 {
-                    jobUrl = jobUrl + "&query=" + xlDataObj.xlKeyword;
+                    jobUrl = jobUrl + "&q=" + keywrd;
                 }
                 else if (!string.IsNullOrEmpty(xlDataObj.xlJobLocation))
                 {
-                    jobUrl = jobUrl + "&location=" + xlDataObj.xlJobLocation;
+                    jobUrl = jobUrl + "&l=" + xlDataObj.xlJobLocation;
                 }
+                var xs = BrowserAutoBot.GetStringContentFromUrl(jobUrl).Result;
 
                 Invoke((Action)(() =>
                 {
                     label1.Text = $@"{jobs.IndexOf(xlDataObj)} Processing..";
+
                 }));
-                var output = JsonConvert.DeserializeObject<SnagajobClass>(BrowserAutoBot.GetStringContentFromUrl(jobUrl).Result);
+
+
+                var output = JsonConvert.DeserializeObject<JobTwoCrawler>(xs);
 
                 Thread.Sleep(10000);
-                if (output.list.Length > 0)
+                if (output.jobAds.Keys.Count > 0)
                 {
-                    foreach (var job in output.list)
+                    foreach (var job in output.jobAds.Values)
                     {
-                        var amazonLink = "";
-                        if (job.companyName.ToLower() == "amazon")
-                        {
-                            amazonLink = "https://www.snagajob.com/job-seeker/apply/apply.aspx?postingId=" +
-                                         job.postingId;
-                        }
                         OuputJobs.Add(new xlData()
                         {
                             xlDate = xlDataObj.xlDate,
@@ -141,14 +153,13 @@ namespace SnagAJob_Crawl_All
                             xlSite = xlDataObj.xlSite,
                             Company = job.companyName,
                             JobTitle = job.title,
-                            Position = ((output.list.ToList().IndexOf(job)) + 1).ToString(),
-                            JobDetailUrl = $"{_snagAJobUrl}/jobs/{job.postingId}",
+                            Position = ((output.jobAds.Values.ToList().IndexOf(job)) + 1).ToString(),
+                            JobDetailUrl = job.link,
                             JobId = "",
-                            Age = ((int)(DateTime.Now - job.createdDate).TotalDays) + " days",
-                            Location2 = job.location?.city + ", " + job.location?.stateProvinceCode,
-                            Wage = "",
-                            xlAmazonId = "",
-                            AmazonLink = amazonLink
+                            Age = ((int)(DateTime.Now - job.datePosted).TotalDays) + " days",
+                            Location2 = job.cityState,
+                            Wage = job.salaryDetails?.Values.FirstOrDefault(x => x.unit == "hourly")?.label ?? "",
+                            xlAmazonId = ""
                         });
                     }
                 }
@@ -175,7 +186,6 @@ namespace SnagAJob_Crawl_All
 
             }
             ExportToExcel(OuputJobs);
-            MessageBox.Show("Processed");
         }
 
         private DataSet readExcel(string sFile)
@@ -192,43 +202,7 @@ namespace SnagAJob_Crawl_All
 
             return dataSet;
         }
-        void PrepareRows(DataSet dataSet)
-        {
-            var datatable = dataSet.Tables[0];
-            for (var iRow = 1; iRow < datatable.Rows.Count; iRow++) // START FROM THE SECOND ROW.
-            {
-                xlData xlDataObj = new xlData();
 
-                if (datatable.Rows[iRow][1] == null)
-                {
-                    return;
-                }
-
-                xlDataObj.xlDate = datatable.Rows[iRow][0].ToString();
-                xlDataObj.xlSite = datatable.Rows[iRow][1].ToString();
-                xlDataObj.xlKeyword = datatable.Rows[iRow][2].ToString();
-                if (datatable.Rows[iRow][2].ToString().ToLower().Contains("empty"))
-                {
-                    xlDataObj.xlKeyword = datatable.Rows[iRow][2].ToString().ToLower().Replace("empty", "");
-                }
-
-                xlDataObj.xlJobLocation = datatable.Rows[iRow][3].ToString();
-                xlDataObj.xlAmazonId = datatable.Rows[iRow][4].ToString();
-                xlDataObj.JobDetailUrl = datatable.Rows[iRow][5].ToString();
-                if (xlDataObj.xlJobLocation.ToLower().Contains("empty"))
-                {
-                    xlDataObj.xlJobLocation = xlDataObj.xlJobLocation.ToLower().Replace("empty", "");
-                }
-                if (string.IsNullOrEmpty(xlDataObj.xlKeyword) && string.IsNullOrEmpty(xlDataObj.xlJobLocation))
-                    continue;
-                jobs.Add(xlDataObj);
-            }
-        }
-        private void button2_Click(object sender, EventArgs e)
-        {
-            ExportToExcel(OuputJobs);
-            MessageBox.Show("Processed");
-        }
         private DataTable ExportToExcel(List<xlData> jobs)
         {
             DataSet ds = new DataSet("New_DataSet");
@@ -245,7 +219,7 @@ namespace SnagAJob_Crawl_All
             table.Columns.Add("Age", typeof(string));
             table.Columns.Add("Position URL", typeof(string));
             table.Columns.Add("JobID", typeof(string));
-            table.Columns.Add("Amazon Link", typeof(string));
+
             foreach (var item in jobs)
             {
                 table.Rows.Add(item.xlDate,
@@ -255,12 +229,11 @@ namespace SnagAJob_Crawl_All
                     item.Position,
                     item.Company ?? "",
                     item.JobTitle ?? "",
-                    (item.Location2 ?? "").ToCamelCase(),
+                    item.Location2 ?? "",
                     item.Wage ?? "",
                     item.Age ?? "",
                     item.JobDetailUrl ?? "",
-                    item.JobId ?? "",
-                    item.AmazonLink ?? ""
+                    item.JobId ?? ""
 
                 );
             }
@@ -271,6 +244,38 @@ namespace SnagAJob_Crawl_All
 
             ExcelLibrary.DataSetHelper.CreateWorkbook(path + ".xls", ds);
             return table;
+        }
+        void PrepareRows(DataSet dataSet)
+        {
+            var datatable = dataSet.Tables[0];
+            for (var iRow = 1; iRow < datatable.Rows.Count; iRow++) // START FROM THE SECOND ROW.
+            {
+                xlData xlDataObj = new xlData();
+
+                if (datatable.Rows[iRow][1] == null)
+                {
+                    return;
+                }
+
+                xlDataObj.xlDate = datatable.Rows[iRow][0].ToString();
+                xlDataObj.xlSite = datatable.Rows[iRow][1].ToString();
+                xlDataObj.xlKeyword = datatable.Rows[iRow][2].ToString();
+                xlDataObj.xlJobLocation = datatable.Rows[iRow][3].ToString();
+                xlDataObj.xlAmazonId = datatable.Rows[iRow][4].ToString();
+                xlDataObj.JobDetailUrl = datatable.Rows[iRow][5].ToString();
+                if (xlDataObj.xlJobLocation.ToLower().Contains("empty"))
+                {
+                    xlDataObj.xlJobLocation = xlDataObj.xlJobLocation.ToLower().Replace("empty", "");
+                }
+                if (string.IsNullOrEmpty(xlDataObj.xlKeyword) && string.IsNullOrEmpty(xlDataObj.xlJobLocation))
+                    continue;
+                jobs.Add(xlDataObj);
+            }
+        }
+
+        private void button2_Click(object sender, EventArgs e)
+        {
+            ExportToExcel(OuputJobs);
         }
     }
 }
