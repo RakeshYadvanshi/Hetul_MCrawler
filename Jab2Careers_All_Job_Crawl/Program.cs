@@ -4,7 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace Jab2Careers_All_Job_Crawl
+namespace Job2Careers_All_Job_Crawl
 {
     static class Program
     {

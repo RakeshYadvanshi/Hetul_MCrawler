@@ -13,7 +13,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace Jab2Careers_All_Job_Crawl
+namespace Job2Careers_All_Job_Crawl
 {
 
 
@@ -156,9 +156,9 @@ namespace Jab2Careers_All_Job_Crawl
                             Position = ((output.jobAds.Values.ToList().IndexOf(job)) + 1).ToString(),
                             JobDetailUrl = job.link,
                             JobId = "",
-                            Age = ((int)(DateTime.Now - job.datePosted).TotalDays) + " days",
+                            Age = Convert.ToInt32((DateTime.Now - job.datePosted).TotalDays).ToString(),
                             Location2 = job.cityState,
-                            Wage = job.salaryDetails?.Values.FirstOrDefault(x => x.unit == "hourly")?.label ?? "",
+                            Wage = getSalValue(job.salaryDetails),
                             xlAmazonId = ""
                         });
                     }
@@ -186,8 +186,18 @@ namespace Jab2Careers_All_Job_Crawl
 
             }
             ExportToExcel(OuputJobs);
+            Invoke((Action)(() =>
+            {
+                label1.Text = $@"Exported Successfuly";
+
+            }));
         }
 
+        private string getSalValue(Dictionary<string, SalaryDetail> jd)
+        {
+            var hourlyValue = jd?.Values.FirstOrDefault(x => x.unit == "hourly")?.value?.Values;
+            return hourlyValue == null ? "" : "$"+hourlyValue.Last();
+        }
         private DataSet readExcel(string sFile)
         {
             DataSet dataSet;

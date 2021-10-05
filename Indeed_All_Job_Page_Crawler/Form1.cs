@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Web;
 using System.Windows.Forms;
 using ExcelDataReader;
 using Newtonsoft.Json.Linq;
@@ -115,23 +116,23 @@ namespace Indeed_All_Job_Page_Crawler
             var detailPage = setupBrowser().Result;
             foreach (var xlDataObj in jobs)
             {
-                string jobUrl = $"{_indeedBaseUrl}/jobs";
+                string jobUrl = $"{_indeedBaseUrl}/jobs?radius=5";
                 if (!string.IsNullOrEmpty(xlDataObj.xlKeyword) && !string.IsNullOrEmpty(xlDataObj.xlJobLocation))
                 {
-                    jobUrl = jobUrl + "?q=" + xlDataObj.xlKeyword + "&l=" + xlDataObj.xlJobLocation;
+                    jobUrl = jobUrl + "&q=" + xlDataObj.xlKeyword + "&l=" + xlDataObj.xlJobLocation;
                 }
                 else if (!string.IsNullOrEmpty(xlDataObj.xlKeyword))
                 {
-                    jobUrl = jobUrl + "?q=" + xlDataObj.xlKeyword;
+                    jobUrl = jobUrl + "&q=" + xlDataObj.xlKeyword;
                 }
                 else if (!string.IsNullOrEmpty(xlDataObj.xlJobLocation))
                 {
-                    jobUrl = jobUrl + "?l=" + xlDataObj.xlJobLocation;
+                    jobUrl = jobUrl + "&l=" + xlDataObj.xlJobLocation;
                 }
 
                 page.GoToAsync(jobUrl, new NavigationOptions() { Timeout = 0, WaitUntil = new WaitUntilNavigation[] { } });
 
-                Task.Delay(3000).Wait();
+                Task.Delay(10000).Wait();
                 Invoke((Action)(() => { label1.Text = $@"{jobs.IndexOf(xlDataObj)} processing"; }));
                 var htmlCnt = page.GetContentAsync().Result;
                 HtmlAgilityPack.HtmlDocument doc = new HtmlAgilityPack.HtmlDocument();
@@ -177,8 +178,15 @@ namespace Indeed_All_Job_Page_Crawler
                         Invoke((Action)(() => { label2.Text = $@"getting company content : index {index}"; }));
                         company = item.QuerySelector(".companyName")?.InnerText.Replace("\n", "").HtmlDecode();
                         Invoke((Action)(() => { label2.Text = $@"getting detail url : index {index}"; }));
-                        jobDetailUrl = BrowserAutoBot.GetApplyLink($"{_indeedBaseUrl}/viewjob?jk=" + id, 3, detailPage, false)
-                            .HandleEmptyUrl();
+                        jobDetailUrl = item.GetAttributeValue<string>("href", "");
+                        if (!string.IsNullOrEmpty(jobDetailUrl))
+                        {
+                            jobDetailUrl = HttpUtility.HtmlDecode($"{_indeedBaseUrl}{jobDetailUrl}");
+                        }
+                        else
+                        {
+                            jobDetailUrl = "Not Found";
+                        }
                         // jobId = GetAmazonId(jobDetailUrl, detailPage).Result;
                         Invoke((Action)(() => { label2.Text = $@"getting job wage : index {index}"; }));
                         jobWage = (item.QuerySelector(".salary-snippet")?.InnerText.Trim() ?? "").HandleJobWageFromIndeed();
@@ -224,6 +232,8 @@ namespace Indeed_All_Job_Page_Crawler
             ExportToExcel(OuputJobs);
             MessageBox.Show("Processed");
         }
+
+
         private async Task<string> GetAmazonId(string JobDetailUrl, Page _page)
         {
             try

@@ -64,8 +64,12 @@ namespace ziprecruiter_all_job_crawl
                 await Search(currentBatch, page, ischked).ConfigureAwait(false);
                 currentBatch.isProcessed = workStatus.completed;
             }
-
-            Invoke((Action)(() => label2.Text = @"Job Done!! Export manually"));
+            ExportToExcel(ResultJobs);
+            Invoke((Action)(() =>
+            {
+                label2.Text = @"Job Done!! Exported";
+                MessageBox.Show("Exported");
+            }));
         }
 
         private async Task Search(xlData xlDataObj, Page _page, bool useBrowserAsBot)
@@ -101,19 +105,19 @@ namespace ziprecruiter_all_job_crawl
 
                     var company = item.QuerySelector(".t_org_link.name")?.InnerText.Replace("\n", "");
                     var jobDetailUrl = item.QuerySelector(".job_link.t_job_link").Attributes["href"].Value;
-
+                    var location = item.QuerySelector(".t_location_link.location")?.InnerText.Replace("\n", "");
+                    var wage = getFormattedWage(item.QuerySelector(".perks_item.perks_compensation .data_item")?.InnerText.Replace("\n", ""));
                     ResultJobs.Add(new xlData
                     {
-                        CompanyName = xlDataObj.CompanyName,
                         xlJobLocation = xlDataObj.xlJobLocation,
                         xlKeyword = xlDataObj.xlKeyword,
                         xlDate = xlDataObj.xlDate,
                         xlSite = xlDataObj.xlSite,
                         Position = index + 1,
-                        Company = company,
-                        JobTitle = jobTitle,
-                        Location2 = "",
-                        Wage = "NA",
+                        Company = company.HtmlDecode(),
+                        JobTitle = jobTitle.HtmlDecode(),
+                        Location2 = location.HtmlDecode(),
+                        Wage = wage,
                         Age = "NA",
                         JobDetailUrl = jobDetailUrl
                     });
@@ -196,11 +200,11 @@ namespace ziprecruiter_all_job_crawl
 
                 xlDataObj.xlDate = datatable.Rows[iRow][0].ToString();
                 xlDataObj.xlSite = datatable.Rows[iRow][1].ToString();
-                xlDataObj.xlKeyword = datatable.Rows[iRow][2].ToString().ToLower().Replace("empty", "");
+                xlDataObj.xlKeyword = datatable.Rows[iRow][2].ToString().RegexReplaceCaseInsenstive("empty", "");
                 xlDataObj.xlJobLocation = datatable.Rows[iRow][3].ToString();
                 xlDataObj.xlAmazonId = datatable.Rows[iRow][4].ToString();
                 xlDataObj.JobDetailUrl = datatable.Rows[iRow][5].ToString();
-                xlDataObj.xlJobLocation = xlDataObj.xlJobLocation.ToLower().Replace("empty", "");
+                xlDataObj.xlJobLocation = xlDataObj.xlJobLocation.RegexReplaceCaseInsenstive("empty", "");
 
                 if (string.IsNullOrEmpty(xlDataObj.xlKeyword) && string.IsNullOrEmpty(xlDataObj.xlJobLocation))
                     continue;
@@ -232,13 +236,13 @@ namespace ziprecruiter_all_job_crawl
                     item.xlKeyword,
                     item.xlJobLocation,
                     item.Position,
-                    string.IsNullOrEmpty(item.CompanyName) ? "No Job Found" : item.CompanyName,
-                    item.JobTitle,
-                    item.Location2,
-                    item.Wage,
-                    item.Age,
+                    string.IsNullOrEmpty(item.Company) ? "No Job Found" : item.Company,
+                    item.JobTitle ?? "",
+                    item.Location2 ?? "",
+                    item.Wage ?? "",
+                    item.Age ?? "",
                     item.JobDetailUrl ?? "",
-                    item.xlAmazonId
+                    item.xlAmazonId ?? ""
                 );
             }
 
@@ -259,7 +263,6 @@ namespace ziprecruiter_all_job_crawl
             public string xlKeyword { get; set; }
             public string JobDetailUrl { get; set; }
             public workStatus isProcessed { get; set; } = workStatus.pending;
-            public string CompanyName { get; set; }
             public int Position { get; internal set; }
             public string JobTitle { get; internal set; }
             public string Company { get; internal set; }
@@ -279,6 +282,21 @@ namespace ziprecruiter_all_job_crawl
             ExportToExcel(ResultJobs);
         }
 
+        private string getFormattedWage(string str)
+        {
+            if (string.IsNullOrEmpty(str))
+                return "";
+            var separator = new List<string>()
+            {
+                "to"
+            };
+            str = str.Replace("Hourly", "").Replace("Annually", "").Replace("Monthly", "");
+            if (str.ToLower().Contains("to"))
+            {
+                str = str.ToLower().Split(separator.ToArray(), StringSplitOptions.RemoveEmptyEntries)[1].Trim();
+            }
+            return str;
+        }
 
     }
 }

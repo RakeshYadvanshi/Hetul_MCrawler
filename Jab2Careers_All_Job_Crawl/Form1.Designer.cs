@@ -1,5 +1,5 @@
 ﻿
-namespace Jab2Careers_All_Job_Crawl
+namespace Job2Careers_All_Job_Crawl
 {
     partial class Form1
     {

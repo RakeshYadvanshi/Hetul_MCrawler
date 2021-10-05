@@ -21,7 +21,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Amazon_Job_ZipRecruiter_Com
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ziprecruiter_all_job_crawl", "ziprecruiter_all_job_crawl\ziprecruiter_all_job_crawl.csproj", "{9D5176E1-6462-4F31-9B1D-89F65C81CC30}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Jab2Careers_All_Job_Crawl", "Jab2Careers_All_Job_Crawl\Jab2Careers_All_Job_Crawl.csproj", "{7C30F791-1A62-4CB4-97E2-C2FBB142E01E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Job2Careers_All_Job_Crawl", "Jab2Careers_All_Job_Crawl\Job2Careers_All_Job_Crawl.csproj", "{7C30F791-1A62-4CB4-97E2-C2FBB142E01E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
