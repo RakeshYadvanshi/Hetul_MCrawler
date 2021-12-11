@@ -214,7 +214,7 @@ namespace AmazonJobComarisionCheck
                         // ignored
                     }
 
-                    var company = item.QuerySelector(".companyOverviewLink")?.InnerText.Replace("\n", "");
+                    var company = item.QuerySelector(".companyName")?.InnerText.Replace("\n", "");
                     if (company.ToLower().Contains("amazon"))
                     {
                         var jobDetailUrl = BrowserAutoBot.GetApplyLink($"{IndeedBaseUrl}/viewjob?jk=" + id, 1, _page, true).HandleEmptyUrl();

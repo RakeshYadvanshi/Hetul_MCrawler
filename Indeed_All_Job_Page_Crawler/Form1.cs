@@ -3,12 +3,14 @@ using System.Collections.Generic;
 using System.Data;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
 using System.Windows.Forms;
 using ExcelDataReader;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using PuppeteerSharp;
 using Shared;
@@ -63,6 +65,7 @@ namespace Indeed_All_Job_Page_Crawler
             public string Wage { get; set; }
             public string Age { get; set; }
             public string JobId { get; set; }
+            public string JobDesctionLastLine { get; internal set; }
         }
         void PrepareRows(DataSet dataSet)
         {
@@ -145,6 +148,14 @@ namespace Indeed_All_Job_Page_Crawler
                     isMosiac = true;
                     jobList = doc.QuerySelectorAll("#mosaic-provider-jobcards>a.result");
                 }
+                List<string> jobIds = new List<string>();
+                foreach (var item in jobList)
+                {
+                    var id = item.Id.Split('_')[item.Id.Split('_').Length - 1];
+                    jobIds.Add(id);
+                }
+
+                var allJobsDetails = jobDetails(jobIds);
 
                 for (var index = 0; index < jobList.Count; index++)
                 {
@@ -189,11 +200,12 @@ namespace Indeed_All_Job_Page_Crawler
                         }
                         // jobId = GetAmazonId(jobDetailUrl, detailPage).Result;
                         Invoke((Action)(() => { label2.Text = $@"getting job wage : index {index}"; }));
-                        jobWage = (item.QuerySelector(".salary-snippet")?.InnerText.Trim() ?? "").HandleJobWageFromIndeed();
+                        jobWage = (item.QuerySelector(".metadata.salary-snippet-container")?.InnerText.Trim() ?? "").HandleJobWageFromIndeed();
                         Invoke((Action)(() => { label2.Text = $@"getting job age : index {index}"; }));
                         jobAge = item.QuerySelector(".date").InnerText.HandleStringDateFromIndeed();
                         Invoke((Action)(() => { label2.Text = $@"getting location : index {index}"; }));
                         jobLocation = item.QuerySelector(".companyLocation").ChildNodes[0].InnerText.HandleStringJobLocationFromIndeed().HtmlDecode();
+
                     }
                     else
                     {
@@ -211,6 +223,31 @@ namespace Indeed_All_Job_Page_Crawler
                         jobLocation = item.QuerySelector(".recJobLoc").Attributes["data-rc-loc"].Value.HandleStringJobLocationFromIndeed().HtmlDecode();
                     }
 
+                    //detailPage.GoToAsync(jobDetailUrl, new NavigationOptions() { Timeout = 0, WaitUntil = new WaitUntilNavigation[] { } });
+                    //Task.Delay(10000).Wait();
+                    //var htmlDescCnt = detailPage.GetContentAsync().Result;
+
+                    var compListFilter = new List<string>()
+                    {
+                        "amazon", "amazon hvh", "amazon workforce staffing"
+                    };
+                    var des = "";
+                    if (compListFilter.Any(x=>x== company.ToLower()))
+                    {
+
+                        HtmlAgilityPack.HtmlDocument docDesc = new HtmlAgilityPack.HtmlDocument();
+                        docDesc.LoadHtml(allJobsDetails[jobList[index].Id.Split('_')[item.Id.Split('_').Length - 1]]);
+                        des = docDesc.DocumentNode.InnerText;
+                        var spliter = new string[] { ". " };
+                        if (company.ToLower()=="amazon")
+                        {
+                            spliter = new string[] { "/." };
+                        }
+                        var desList = des.Split(spliter, StringSplitOptions.RemoveEmptyEntries);
+
+                        des = desList[desList.Length - 1].Trim();
+                    }
+                    
                     OuputJobs.Add(new xlData()
                     {
                         xlDate = xlDataObj.xlDate,
@@ -224,7 +261,8 @@ namespace Indeed_All_Job_Page_Crawler
                         JobId = jobId,
                         Age = jobAge,
                         Wage = jobWage,
-                        Location2 = jobLocation
+                        Location2 = jobLocation,
+                        JobDesctionLastLine = des
                     });
                 }
             }
@@ -278,7 +316,7 @@ namespace Indeed_All_Job_Page_Crawler
             table.Columns.Add("Age", typeof(string));
             table.Columns.Add("Position URL", typeof(string));
             table.Columns.Add("JobID", typeof(string));
-
+            table.Columns.Add("Job Desc Last Line", typeof(string));
             foreach (var item in jobs)
             {
                 table.Rows.Add(item.xlDate,
@@ -292,8 +330,8 @@ namespace Indeed_All_Job_Page_Crawler
                     item.Wage ?? "",
                     item.Age ?? "",
                     item.JobDetailUrl ?? "",
-                    item.JobId ?? ""
-
+                    item.JobId ?? "",
+                    item.JobDesctionLastLine ?? ""
                 );
             }
 
@@ -324,6 +362,27 @@ namespace Indeed_All_Job_Page_Crawler
         {
             ExportToExcel(OuputJobs);
         }
+
+
+        private Dictionary<string, string> jobDetails(List<string> jobIds)
+        {
+            string delimiter = ",";
+            var keywords = String.Join(delimiter, jobIds);
+            var url = $"{_indeedBaseUrl}/rpc/jobdescs?jks=" + keywords;
+            var html = "";
+
+            using (WebClient wc = new WebClient())
+            {
+                wc.Headers["accept"] = "application/json";
+                wc.Headers["UserAgent"] =
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.83 Safari/537.36";
+                Console.WriteLine("downloading-> " + url);
+                html = wc.DownloadString(url);
+                return JsonConvert.DeserializeObject<Dictionary<string, string>>(html);
+            }
+        }
+
+
     }
 
 }

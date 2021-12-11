@@ -13,14 +13,38 @@ namespace Shared
         {
             var document = new HtmlAgilityPack.HtmlDocument();
             document.LoadHtml(amazonHtmlContent);
-            var textContent = document.DocumentNode.QuerySelector(".first")?.InnerHtml;
+            var textContent = document.DocumentNode.QuerySelector(".css-kyen4s")?.InnerHtml;
             if (textContent != null)
             {
+                if (textContent.ToLower().Contains("job-us"))
+                {
+                    return textContent.Split(':')[1].Trim();
+                }
+                else
+                {
+                    Regex re = new Regex(@"\d+");
+                    Match m = re.Match(textContent);
+                    return m.Value;
+                }
+             
+            }
+            else
+            {
+                textContent = document.DocumentNode.QuerySelector(".details-line .meta")?.InnerHtml;
+                if (textContent != null)
+                {
+                    if (textContent.ToLower().Contains("job-us"))
+                    {
+                        return textContent.Split(':')[1].Trim();
+                    }
+                    else
+                    {
+                        Regex re = new Regex(@"\d+");
+                        Match m = re.Match(textContent);
+                        return m.Value;
+                    }
+                }
 
-
-                Regex re = new Regex(@"\d+");
-                Match m = re.Match(textContent);
-                return m.Value;
             }
             return "";
         }
@@ -78,9 +102,11 @@ namespace Shared
             return new CultureInfo("en-US", false).TextInfo.ToTitleCase(str);
         }
 
-        public static string RegexReplaceCaseInsenstive(this string input,string pattern, string replacement)
+        public static string RegexReplaceCaseInsenstive(this string input, string pattern, string replacement)
         {
             return Regex.Replace(input, pattern, replacement, RegexOptions.IgnoreCase);
         }
+
+
     }
 }

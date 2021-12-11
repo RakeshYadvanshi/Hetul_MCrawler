@@ -1,5 +1,6 @@
 ﻿using ExcelDataReader;
 using Newtonsoft.Json;
+using PuppeteerSharp;
 using Shared;
 using System;
 using System.Collections.Generic;
@@ -17,6 +18,33 @@ namespace SnagAJob_Crawl_All
     public partial class Form1 : Form
     {
 
+        private static Browser _browser;
+        public static async Task<Page> setupBrowser()
+        {
+            _browser = await Puppeteer.LaunchAsync(new LaunchOptions
+            {
+                Headless = false,
+                ExecutablePath =
+                    @"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe", //"C:\Users\Admin\AppData\Local\Chromium\Application\chrome.exe",
+                LogProcess = true,
+                IgnoreHTTPSErrors = true,
+                Args = new[]
+                {
+                    "--no-sandbox",
+                    "--incognito",
+                    "--disable-infobars",
+                    "--disable-setuid-sandbox",
+                    "--ignore-ICertificatePolicy-errors",
+                }
+            }).ConfigureAwait(false);
+            var page = (await _browser.PagesAsync().ConfigureAwait(false)).First();
+            await page.SetViewportAsync(new ViewPortOptions()
+            {
+                Height = 768,
+                Width = 1366
+            });
+            return page;
+        }
 
         #region SnapAJobClass
 
@@ -38,7 +66,7 @@ namespace SnagAJob_Crawl_All
             public DateTime createdDate { get; set; }
 
             public AddressLocation location { get; set; }
-
+            public string AmazonId { get; internal set; }
         }
 
         public class AddressLocation
@@ -69,6 +97,7 @@ namespace SnagAJob_Crawl_All
             public string Age { get; set; }
             public string JobId { get; set; }
             public string AmazonLink { get; set; }
+            public string AlternateLink { get; set; }
         }
         private readonly string _snagAJobUrl = "https://www.snagajob.com";
         static string sFileName;
@@ -96,6 +125,7 @@ namespace SnagAJob_Crawl_All
 
         void Work()
         {
+            var page = setupBrowser().Result;
             DataSet dataSet = readExcel(sFileName);
             PrepareRows(dataSet);
 
@@ -128,10 +158,74 @@ namespace SnagAJob_Crawl_All
                     foreach (var job in output.list)
                     {
                         var amazonLink = "";
+                        var JobDetailUrl = $"{_snagAJobUrl}/jobs/{job.postingId}";
+                        var alternateLink = "";
                         if (job.companyName.ToLower() == "amazon")
                         {
                             amazonLink = "https://www.snagajob.com/job-seeker/apply/apply.aspx?postingId=" +
                                          job.postingId;
+                        }
+                        if (job.companyName.ToLower() == "delivery service partner" ||
+                            job.companyName.ToLower() == "amazon" ||
+                            job.companyName.ToLower() == "amazon hvh" ||
+                            job.companyName.ToLower() == "amazon workforce staffing" ||
+                            job.companyName.ToLower().Contains("amazon dsp"))
+                        {
+                            if (page.IsClosed)
+                            {
+                                page = _browser.PagesAsync().Result.ToList().Last();
+                            }
+                            page.GoToAsync(JobDetailUrl, new NavigationOptions() { Timeout = 0, WaitUntil = new WaitUntilNavigation[] { } });
+                            var ifclickwork = false;
+                            try
+                            {
+                                page.WaitForSelectorAsync(".job__header-row apply-button").Wait();
+                                page.ClickAsync(".job__header-row apply-button").Wait();
+                                ifclickwork = true;
+                            }
+                            catch (Exception)
+                            {
+                            }
+
+                            List<Page> pages = _browser.PagesAsync().Result.ToList();
+                            var mxtry = 20;
+                            var tryCount = 0;
+                            if (ifclickwork)
+                            {
+                                do
+                                {
+                                    Task.Delay(1000).Wait();
+                                    pages = _browser.PagesAsync().Result.ToList();
+                                    tryCount++;
+                                    if (tryCount > mxtry)
+                                    {
+                                        break;
+                                    }
+                                }
+
+                                while (pages.Count != 2);
+                            }
+                            Task.Delay(10000).Wait();
+                            var pageref = pages.Where(x => !x.Url.Contains("snagajob")).FirstOrDefault();
+                            if (pageref != null)
+                            {
+                                alternateLink = pageref.Url;
+                                HtmlAgilityPack.HtmlDocument amzdoc = new HtmlAgilityPack.HtmlDocument();
+                                amzdoc.LoadHtml(pageref.GetContentAsync().Result);
+                                job.AmazonId = Helper.GetAmazonJobId(pageref.GetContentAsync().Result);
+                                if (string.IsNullOrEmpty(job.AmazonId))
+                                {
+                                    var h1Content = amzdoc.QuerySelector("h1");
+                                    if (amzdoc.QuerySelector("h1") != null)
+                                        if (h1Content.InnerText.Contains(": "))
+                                        {
+                                            job.AmazonId = h1Content.InnerText.Split(new string[] { ": " }, StringSplitOptions.RemoveEmptyEntries)[1];
+                                        }
+                                }
+
+
+                                pageref.CloseAsync().Wait();
+                            }
                         }
                         OuputJobs.Add(new xlData()
                         {
@@ -142,13 +236,14 @@ namespace SnagAJob_Crawl_All
                             Company = job.companyName,
                             JobTitle = job.title,
                             Position = ((output.list.ToList().IndexOf(job)) + 1).ToString(),
-                            JobDetailUrl = $"{_snagAJobUrl}/jobs/{job.postingId}",
-                            JobId = "",
+                            JobDetailUrl = JobDetailUrl,
+                            JobId = job.AmazonId,
                             Age = ((int)(DateTime.Now - job.createdDate).TotalDays) + " days",
                             Location2 = job.location?.city + ", " + job.location?.stateProvinceCode,
                             Wage = "",
                             xlAmazonId = "",
-                            AmazonLink = amazonLink
+                            AmazonLink = amazonLink,
+                            AlternateLink = alternateLink
                         });
                     }
                 }
@@ -168,7 +263,8 @@ namespace SnagAJob_Crawl_All
                         Age = "",
                         Location2 = "No Job Found",
                         Wage = "",
-                        xlAmazonId = ""
+                        xlAmazonId = "",
+                        AlternateLink = ""
                     });
                 }
 
@@ -246,6 +342,7 @@ namespace SnagAJob_Crawl_All
             table.Columns.Add("Position URL", typeof(string));
             table.Columns.Add("JobID", typeof(string));
             table.Columns.Add("Amazon Link", typeof(string));
+            table.Columns.Add("Alternate Link", typeof(string));
             foreach (var item in jobs)
             {
                 table.Rows.Add(item.xlDate,
@@ -260,7 +357,8 @@ namespace SnagAJob_Crawl_All
                     item.Age ?? "",
                     item.JobDetailUrl ?? "",
                     item.JobId ?? "",
-                    item.AmazonLink ?? ""
+                    item.AmazonLink ?? "",
+                    item.AlternateLink ?? ""
 
                 );
             }
@@ -271,6 +369,11 @@ namespace SnagAJob_Crawl_All
 
             ExcelLibrary.DataSetHelper.CreateWorkbook(path + ".xls", ds);
             return table;
+        }
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+
         }
     }
 }
